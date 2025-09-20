@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Sistema Web</title>
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <div class="header-content">
+                <h1>Dashboard</h1>
+                <div class="user-info">
+                    <span id="userName">Usuario</span>
+                    <button onclick="logout()" class="logout-btn">Cerrar Sesión</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="dashboard-main">
+            <div class="welcome-section">
+                <h2>¡Bienvenido al Sistema!</h2>
+                <p>Has iniciado sesión exitosamente en tu cuenta.</p>
+            </div>
+
+            <div class="user-profile">
+                <h3>Información del Perfil</h3>
+                <div class="profile-info">
+                    <div class="info-item">
+                        <label>Nombre:</label>
+                        <span id="profileName">-</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Email:</label>
+                        <span id="profileEmail">-</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Fecha de registro:</label>
+                        <span id="profileDate">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions-section">
+                <h3>Acciones</h3>
+                <div class="action-buttons">
+                    <button onclick="loadUserProfile()" class="action-btn">Actualizar Perfil</button>
+                    <button onclick="showChangePassword()" class="action-btn">Cambiar Contraseña</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
