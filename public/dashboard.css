@@ -19,11 +19,11 @@ body {
 }
 
 .dashboard-header {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
+    background: linear-gradient(135deg, #1a252f 0%, #2c3e50 100%);
+    backdrop-filter: blur(15px);
     padding: 20px 0;
-    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
 }
 
 .header-content {
@@ -35,10 +35,43 @@ body {
     align-items: center;
 }
 
-.dashboard-header h1 {
-    color: #333;
+.dashboard-logo {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-left: 0;
+    padding-left: 0;
+}
+
+.dashboard-logo .logo-text {
+    font-size: 18px;
+    font-weight: 600;
+    color: white;
+    margin: 0;
+    padding: 0;
+    white-space: nowrap;
+    line-height: 1.2;
+    flex-shrink: 0;
+}
+
+.dashboard-logo .logo-image {
+    max-width: 90px;
+    max-height: 70px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.95);
+    padding: 4px;
+}
+
+.dashboard-logo h1 {
+    color: white;
     font-size: 28px;
     font-weight: 600;
+    margin: 0;
 }
 
 .user-info {
@@ -48,7 +81,7 @@ body {
 }
 
 .user-info span {
-    color: #666;
+    color: white;
     font-weight: 500;
 }
 
@@ -192,11 +225,31 @@ body {
 }
 
 /* Responsive */
+@media (max-width: 1024px) {
+    .header-content {
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    
+    .dashboard-logo .logo-text {
+        font-size: 16px;
+    }
+}
+
 @media (max-width: 768px) {
     .header-content {
         flex-direction: column;
         gap: 15px;
         text-align: center;
+        padding: 0 15px;
+    }
+    
+    .dashboard-logo {
+        gap: 10px;
+    }
+    
+    .dashboard-logo .logo-text {
+        font-size: 14px;
     }
     
     .user-info {

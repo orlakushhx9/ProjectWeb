@@ -65,6 +65,18 @@ class User {
         }
     }
 
+    // Obtener todos los usuarios
+    static async findAll() {
+        try {
+            const pool = await getConnection();
+            const [rows] = await pool.execute('SELECT * FROM users ORDER BY created_at DESC');
+            
+            return rows.map(row => new User(row));
+        } catch (error) {
+            throw error;
+        }
+    }
+
     // Verificar contraseña
     async comparePassword(candidatePassword) {
         try {

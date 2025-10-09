@@ -60,6 +60,7 @@ function validateEmail(email) {
 }
 
 function validatePassword(password) {
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
     return password.length >= 6;
 }
 
@@ -227,6 +228,10 @@ showRegisterLink.addEventListener('click', (e) => {
     registerForm.style.display = 'block';
     clearErrors(loginForm);
     messageContainer.innerHTML = '';
+    
+    // Actualizar título y subtítulo
+    document.querySelector('.login-header h1').textContent = 'Crear Cuenta';
+    document.querySelector('.login-header p').textContent = 'Únete a nuestra comunidad y comienza tu viaje hacia el éxito';
 });
 
 showLoginLink.addEventListener('click', (e) => {
@@ -235,6 +240,10 @@ showLoginLink.addEventListener('click', (e) => {
     loginForm.style.display = 'block';
     clearErrors(registerForm);
     messageContainer.innerHTML = '';
+    
+    // Restaurar título y subtítulo original
+    document.querySelector('.login-header h1').textContent = 'Iniciar Sesión';
+    document.querySelector('.login-header p').textContent = 'Ingresa tus credenciales para acceder al sistema';
 });
 
 // Toggle de visibilidad de contraseñas
@@ -349,7 +358,7 @@ function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
-    window.location.href = '/';
+    window.location.href = '/home.html';
 }
 
 window.logout = logout;

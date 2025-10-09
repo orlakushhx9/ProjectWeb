@@ -1,16 +1,17 @@
 const mysql = require('mysql2/promise');
-require('dotenv').config();
+require('dotenv').config({ path: './config.env' });
 
 // Configuración de la base de datos MySQL
 const dbConfig = {
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 3306,
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'webprojectdb',
+    host: (process.env.DB_HOST || '127.0.0.1').trim(),
+    port: Number(process.env.DB_PORT) || 3306,
+    user: (process.env.DB_USER || 'root').trim(),
+    password: process.env.DB_PASSWORD ?? '',
+    database: (process.env.DB_NAME || 'webprojectdb').trim(),
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+    connectTimeout: 10000
 };
 
 // Variable global para la conexión

@@ -8,7 +8,7 @@ window.addEventListener('load', () => {
     
     if (!token || !user) {
         // No hay token o usuario, redirigir al login
-        window.location.href = '/';
+        window.location.href = '/home.html';
         return;
     }
     
@@ -118,7 +118,7 @@ function logout() {
     localStorage.removeItem('user');
     
     // Redirigir al login
-    window.location.href = '/';
+    window.location.href = '/home.html';
 }
 
 // Función para mostrar mensajes

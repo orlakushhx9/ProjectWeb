@@ -10,7 +10,7 @@
 ```
 WEB/
 ├── config/
-│   └── database.js          # Configuración de SQL Server
+│   └── database.js          # Configuración de MySQL
 ├── models/
 │   └── User.js              # Modelo de usuario
 ├── routes/
