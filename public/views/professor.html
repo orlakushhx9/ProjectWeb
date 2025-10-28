@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Profesor - Gestus</title>
+    <link rel="stylesheet" href="/css/professor.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="icon" href="/assets/gestus.png" type="image/png">
+</head>
+<body>
+    <div class="professor-container">
+        <!-- Header -->
+        <header class="professor-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <img src="/assets/gestus.png" alt="Gestus Logo" class="logo">
+                    <h1>Panel de Profesor</h1>
+                </div>
+                <div class="user-info">
+                    <div class="user-details">
+                        <span class="user-name" id="userName">Cargando...</span>
+                        <span class="user-role">Profesor</span>
+                    </div>
+                    <button onclick="logout()" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="professor-nav">
+            <ul class="nav-list">
+                <li><a href="#dashboard" class="nav-link active" data-section="dashboard">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a></li>
+                <li><a href="#students" class="nav-link" data-section="students">
+                    <i class="fas fa-users"></i> Mis Estudiantes
+                </a></li>
+                <li><a href="#evaluations" class="nav-link" data-section="evaluations">
+                    <i class="fas fa-clipboard-check"></i> Evaluaciones
+                </a></li>
+                <li><a href="#signs" class="nav-link" data-section="signs">
+                    <i class="fas fa-hands"></i> Gestos de Señas
+                </a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="professor-main">
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="content-section active">
+                <div class="section-header">
+                    <h2><i class="fas fa-tachometer-alt"></i> Dashboard</h2>
+                    <p>Bienvenido a tu panel de profesor</p>
+                </div>
+
+                <div class="dashboard-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="totalStudents">0</h3>
+                            <p>Estudiantes Asignados</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-clipboard-check"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="totalEvaluations">0</h3>
+                            <p>Evaluaciones Realizadas</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="averageScore">0%</h3>
+                            <p>Puntuación Promedio</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="pendingEvaluations">0</h3>
+                            <p>Evaluaciones Pendientes</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recent-activity">
+                    <h3><i class="fas fa-history"></i> Actividad Reciente</h3>
+                    <div class="activity-list" id="recentActivityList">
+                        <div class="no-data">
+                            <i class="fas fa-clipboard-check"></i>
+                            <p>No hay actividad reciente</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Students Section -->
+            <section id="students" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-users"></i> Mis Estudiantes</h2>
+                    <p>Gestiona y evalúa el progreso de tus estudiantes</p>
+                </div>
+
+                <div class="students-controls">
+                    <div class="search-box">
+                        <input type="text" id="studentSearch" placeholder="Buscar estudiantes...">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <div class="filter-controls">
+                        <select id="studentFilter">
+                            <option value="">Todos los estudiantes</option>
+                            <option value="excellent">Excelente rendimiento</option>
+                            <option value="good">Buen rendimiento</option>
+                            <option value="needs-improvement">Necesita mejorar</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="students-table-container">
+                    <table class="students-table" id="studentsTable">
+                        <thead>
+                            <tr>
+                                <th>Estudiante</th>
+                                <th>Email</th>
+                                <th>Prácticas</th>
+                                <th>Promedio</th>
+                                <th>Última Actividad</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentsTableBody">
+                            <tr>
+                                <td colspan="6" class="no-data">
+                                    <i class="fas fa-users"></i>
+                                    <p>No hay estudiantes asignados</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Evaluations Section -->
+            <section id="evaluations" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-clipboard-check"></i> Evaluaciones</h2>
+                    <p>Evalúa el desempeño de tus estudiantes</p>
+                </div>
+
+                <div class="evaluations-controls">
+                    <div class="search-box">
+                        <input type="text" id="evaluationSearch" placeholder="Buscar evaluaciones...">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <div class="filter-controls">
+                        <select id="evaluationFilter">
+                            <option value="">Todas las evaluaciones</option>
+                            <option value="pending">Pendientes</option>
+                            <option value="completed">Completadas</option>
+                            <option value="overdue">Vencidas</option>
+                        </select>
+                    </div>
+                    <button onclick="professorPanel.createEvaluation()" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Nueva Evaluación
+                    </button>
+                </div>
+
+                <div class="evaluations-table-container">
+                    <table class="evaluations-table" id="evaluationsTable">
+                        <thead>
+                            <tr>
+                                <th>Estudiante</th>
+                                <th>Gesto</th>
+                                <th>Fecha</th>
+                                <th>Estado</th>
+                                <th>Puntuación</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="evaluationsTableBody">
+                            <tr>
+                                <td colspan="6" class="no-data">
+                                    <i class="fas fa-clipboard-check"></i>
+                                    <p>No hay evaluaciones registradas</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Signs Section -->
+            <section id="signs" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-hands"></i> Gestos de Señas</h2>
+                    <p>Gestiona el catálogo de gestos de lenguaje de señas</p>
+                </div>
+
+                <div class="signs-controls">
+                    <div class="search-box">
+                        <input type="text" id="signSearch" placeholder="Buscar gestos...">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <button onclick="professorPanel.addSign()" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Agregar Gesto
+                    </button>
+                </div>
+
+                <div class="signs-grid" id="signsGrid">
+                    <div class="no-data">
+                        <i class="fas fa-hands"></i>
+                        <p>No hay gestos registrados</p>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Cargando...</p>
+        </div>
+    </div>
+
+    <!-- Success/Error Messages -->
+    <div id="messageContainer" class="message-container"></div>
+
+    <!-- Modal de Evaluación -->
+    <div id="evaluationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Nueva Evaluación</h3>
+                <span class="close" onclick="professorPanel.closeEvaluationModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="evaluationForm">
+                    <div class="form-group">
+                        <label for="evaluationStudent">Estudiante:</label>
+                        <select id="evaluationStudent" required>
+                            <option value="">Seleccionar estudiante...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="evaluationSign">Gesto:</label>
+                        <select id="evaluationSign" required>
+                            <option value="">Seleccionar gesto...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="evaluationDate">Fecha:</label>
+                        <input type="date" id="evaluationDate" required />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="evaluationNotes">Notas:</label>
+                        <textarea id="evaluationNotes" rows="3" placeholder="Observaciones sobre la evaluación..."></textarea>
+                    </div>
+                    
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="professorPanel.closeEvaluationModal()">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Crear Evaluación
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/js/professor.js"></script>
+</body>
+</html>

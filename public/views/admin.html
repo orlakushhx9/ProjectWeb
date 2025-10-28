@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - Gestus</title>
+    <link rel="stylesheet" href="/css/admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Header -->
+        <header class="admin-header">
+            <div class="header-content">
+                <div class="logo">
+                    <img src="/assets/gestus.png" alt="Gestus Logo">
+                    <h1>Panel de Administración</h1>
+                </div>
+                <div class="user-info">
+                    <span id="adminName">Cargando...</span>
+                    <button id="logoutBtn" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="admin-nav">
+            <ul>
+                <li><a href="#dashboard" class="nav-link active" data-section="dashboard">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a></li>
+                <li><a href="#users" class="nav-link" data-section="users">
+                    <i class="fas fa-users"></i> Usuarios
+                </a></li>
+                <li><a href="#roles" class="nav-link" data-section="roles">
+                    <i class="fas fa-user-tag"></i> Gestión de Roles
+                </a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="admin-main">
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="content-section active">
+                <div class="section-header">
+                    <h2>Dashboard</h2>
+                    <p>Resumen general del sistema</p>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="totalUsers">-</h3>
+                            <p>Total Usuarios</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="totalProfessors">-</h3>
+                            <p>Profesores</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="totalStudents">-</h3>
+                            <p>Estudiantes</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-user-friends"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="totalParents">-</h3>
+                            <p>Padres</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recent-activity">
+                    <h3>Actividad Reciente</h3>
+                    <div id="recentActivityList" class="activity-list">
+                        <!-- Se llenará dinámicamente -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Users Section -->
+            <section id="users" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-users"></i> Gestión de Usuarios</h2>
+                    <p>Ver y administrar todos los usuarios del sistema</p>
+                    <button onclick="adminPanel.showCreateUserModal()" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Crear Usuario
+                    </button>
+                </div>
+                
+                <div class="users-controls">
+                    <div class="search-box">
+                        <input type="text" id="userSearch" placeholder="Buscar usuarios...">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <div class="filter-controls">
+                        <select id="roleFilter">
+                            <option value="">Todos los roles</option>
+                            <option value="admin">Administradores</option>
+                            <option value="profesor">Profesores</option>
+                            <option value="estudiante">Estudiantes</option>
+                            <option value="padre">Padres</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="users-table-container">
+                    <table class="users-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Email</th>
+                                <th>Rol</th>
+                                <th>Padre Asignado</th>
+                                <th>Fecha Registro</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <!-- Se llenará dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Roles Section -->
+            <section id="roles" class="content-section">
+                <div class="section-header">
+                    <h2>Gestión de Roles</h2>
+                    <p>Cambiar roles y asignar relaciones padre-hijo</p>
+                </div>
+                
+                <div class="role-management">
+                    <div class="role-form">
+                        <h3>Cambiar Rol de Usuario</h3>
+                        <form id="roleChangeForm">
+                            <div class="form-group">
+                                <label for="userSelect">Seleccionar Usuario:</label>
+                                <select id="userSelect" required>
+                                    <option value="">Seleccionar usuario...</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="newRole">Nuevo Rol:</label>
+                                <select id="newRole" required>
+                                    <option value="">Seleccionar rol...</option>
+                                    <option value="admin">Administrador</option>
+                                    <option value="profesor">Profesor</option>
+                                    <option value="estudiante">Estudiante</option>
+                                    <option value="padre">Padre</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group" id="parentSelectGroup" style="display: none;">
+                                <label for="parentSelect">Padre Asignado:</label>
+                                <select id="parentSelect">
+                                    <option value="">Sin padre asignado</option>
+                                </select>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Cambiar Rol
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Cargando...</p>
+        </div>
+    </div>
+
+    <!-- Success/Error Messages -->
+    <div id="messageContainer" class="message-container"></div>
+
+    <!-- Modal de Creación de Usuario -->
+    <div id="createUserModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Crear Nuevo Usuario</h3>
+                <span class="close" onclick="adminPanel.closeCreateModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="createUserForm">
+                    <div class="form-group">
+                        <label for="createUserName">Nombre:</label>
+                        <input type="text" id="createUserName" required />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="createUserEmail">Email:</label>
+                        <input type="email" id="createUserEmail" required />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="createUserPassword">Contraseña:</label>
+                        <input type="password" id="createUserPassword" autocomplete="new-password" required />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="createUserRole">Rol:</label>
+                        <select id="createUserRole" required>
+                            <option value="">Seleccionar rol...</option>
+                            <option value="admin">Administrador</option>
+                            <option value="profesor">Profesor</option>
+                            <option value="estudiante">Estudiante</option>
+                            <option value="padre">Padre</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="createParentSelectGroup" style="display: none;">
+                        <label for="createParentSelect">Padre Asignado:</label>
+                        <select id="createParentSelect">
+                            <option value="">Sin padre asignado</option>
+                        </select>
+                    </div>
+                    
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="adminPanel.closeCreateModal()">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Crear Usuario
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Edición de Usuario -->
+    <div id="editUserModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Editar Usuario</h3>
+                <span class="close" onclick="adminPanel.closeEditModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="editUserForm">
+                    <input type="hidden" id="editUserId" />
+                    
+                    <div class="form-group">
+                        <label for="editUserRole">Rol:</label>
+                        <select id="editUserRole" required>
+                            <option value="">Seleccionar rol...</option>
+                            <option value="admin">Administrador</option>
+                            <option value="profesor">Profesor</option>
+                            <option value="estudiante">Estudiante</option>
+                            <option value="padre">Padre</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="editParentSelectGroup" style="display: none;">
+                        <label for="editParentSelect">Padre Asignado:</label>
+                        <select id="editParentSelect">
+                            <option value="">Sin padre asignado</option>
+                        </select>
+                    </div>
+                    
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="adminPanel.closeEditModal()">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Cambiar Rol
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/js/admin.js"></script>
+</body>
+</html>

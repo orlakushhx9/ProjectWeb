@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Padre - Gestus</title>
+    <link rel="stylesheet" href="/css/parent.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="icon" href="/assets/gestus.png" type="image/png">
+</head>
+<body>
+    <div class="parent-container">
+        <!-- Header -->
+        <header class="parent-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <img src="/assets/gestus.png" alt="Gestus Logo" class="logo">
+                    <h1>Panel de Padre</h1>
+                </div>
+                <div class="user-info">
+                    <div class="user-details">
+                        <span class="user-name" id="userName">Cargando...</span>
+                        <span class="user-role">Padre</span>
+                    </div>
+                    <button onclick="logout()" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="parent-nav">
+            <ul class="nav-list">
+                <li><a href="#dashboard" class="nav-link active" data-section="dashboard">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a></li>
+                <li><a href="#children" class="nav-link" data-section="children">
+                    <i class="fas fa-child"></i> Mis Hijos
+                </a></li>
+                <li><a href="#progress" class="nav-link" data-section="progress">
+                    <i class="fas fa-chart-line"></i> Progreso
+                </a></li>
+                <li><a href="#profile" class="nav-link" data-section="profile">
+                    <i class="fas fa-user"></i> Mi Perfil
+                </a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="parent-main">
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="content-section active">
+                <div class="section-header">
+                    <h2><i class="fas fa-tachometer-alt"></i> Dashboard</h2>
+                    <p>Bienvenido al panel de padre - Monitorea el progreso de tus hijos</p>
+                </div>
+
+                <div class="dashboard-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-child"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="totalChildren">0</h3>
+                            <p>Hijos Registrados</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-hands"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="totalPractices">0</h3>
+                            <p>Prácticas Totales</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="averageScore">0%</h3>
+                            <p>Promedio General</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="lastActivity">N/A</h3>
+                            <p>Última Actividad</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="children-overview">
+                    <h3><i class="fas fa-child"></i> Resumen de Hijos</h3>
+                    <div class="children-grid" id="childrenGrid">
+                        <div class="no-data">
+                            <i class="fas fa-child"></i>
+                            <p>No hay hijos registrados</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Children Section -->
+            <section id="children" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-child"></i> Mis Hijos</h2>
+                    <p>Gestiona y monitorea el progreso de tus hijos</p>
+                </div>
+
+                <div class="children-controls">
+                    <div class="search-box">
+                        <input type="text" id="childSearch" placeholder="Buscar hijos...">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <div class="filter-controls">
+                        <select id="childFilter">
+                            <option value="">Todos los hijos</option>
+                            <option value="excellent">Excelente progreso</option>
+                            <option value="good">Buen progreso</option>
+                            <option value="needs-attention">Necesita atención</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="children-table-container">
+                    <table class="children-table" id="childrenTable">
+                        <thead>
+                            <tr>
+                                <th>Hijo</th>
+                                <th>Email</th>
+                                <th>Prácticas</th>
+                                <th>Promedio</th>
+                                <th>Última Práctica</th>
+                                <th>Progreso</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="childrenTableBody">
+                            <tr>
+                                <td colspan="7" class="no-data">
+                                    <i class="fas fa-child"></i>
+                                    <p>No hay hijos registrados</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Progress Section -->
+            <section id="progress" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-chart-line"></i> Progreso</h2>
+                    <p>Visualiza el progreso detallado de tus hijos</p>
+                </div>
+
+                <div class="progress-filters">
+                    <div class="filter-group">
+                        <label for="progressChild">Seleccionar Hijo:</label>
+                        <select id="progressChild">
+                            <option value="">Todos los hijos</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="progressPeriod">Período:</label>
+                        <select id="progressPeriod">
+                            <option value="week">Esta semana</option>
+                            <option value="month">Este mes</option>
+                            <option value="quarter">Este trimestre</option>
+                            <option value="year">Este año</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="progress-charts">
+                    <div class="chart-container">
+                        <h3>Progreso por Hijo</h3>
+                        <canvas id="childrenProgressChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Evolución Temporal</h3>
+                        <canvas id="temporalProgressChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="progress-summary">
+                    <div class="summary-card">
+                        <h4>Resumen de Progreso</h4>
+                        <div class="summary-stats">
+                            <div class="summary-item">
+                                <span class="label">Mejora promedio:</span>
+                                <span class="value" id="averageImprovement">0%</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="label">Días más activos:</span>
+                                <span class="value" id="mostActiveDays">0</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="label">Gesto más practicado:</span>
+                                <span class="value" id="mostPracticedSign">N/A</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Profile Section -->
+            <section id="profile" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-user"></i> Mi Perfil</h2>
+                    <p>Gestiona tu información personal</p>
+                </div>
+
+                <div class="profile-content">
+                    <div class="profile-info">
+                        <div class="profile-avatar">
+                            <i class="fas fa-user-circle"></i>
+                        </div>
+                        <div class="profile-details">
+                            <h3 id="profileName">Cargando...</h3>
+                            <p id="profileEmail">Cargando...</p>
+                            <span class="profile-role">Padre</span>
+                        </div>
+                    </div>
+
+                    <div class="profile-stats">
+                        <h4>Estadísticas Familiares</h4>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>Miembro desde:</span>
+                                <strong id="memberSince">Cargando...</strong>
+                            </div>
+                            <div class="stat-item">
+                                <i class="fas fa-child"></i>
+                                <span>Hijos registrados:</span>
+                                <strong id="totalChildrenProfile">0</strong>
+                            </div>
+                            <div class="stat-item">
+                                <i class="fas fa-hands"></i>
+                                <span>Prácticas familiares:</span>
+                                <strong id="totalPracticesProfile">0</strong>
+                            </div>
+                            <div class="stat-item">
+                                <i class="fas fa-star"></i>
+                                <span>Promedio familiar:</span>
+                                <strong id="averageScoreProfile">0%</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Cargando...</p>
+        </div>
+    </div>
+
+    <!-- Success/Error Messages -->
+    <div id="messageContainer" class="message-container"></div>
+
+    <!-- Modal de Detalles del Hijo -->
+    <div id="childDetailsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="childDetailsTitle">Detalles del Hijo</h3>
+                <span class="close" onclick="parentPanel.closeChildDetailsModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="child-details-content" id="childDetailsContent">
+                    <!-- Contenido dinámico -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/js/parent.js"></script>
+</body>
+</html>

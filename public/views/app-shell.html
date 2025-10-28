@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <!-- Configuración básica de la página -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Web Gestus</title>
+    
+    <!-- Archivos CSS y configuración PWA -->
+    <link rel="stylesheet" href="/css/app-shell.css">
+    <link rel="manifest" href="/assets/manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <meta name="description" content="Gestus - Plataforma educativa con reconocimiento de gestos desarrollada por estudiantes de la Universidad Tecnológica de Santa Catarina">
+</head>
+<body>
+    <!-- Contenedor principal de la aplicación -->
+    <div id="app-shell" class="app-shell">
+        <!-- Barra de navegación superior -->
+        <header class="app-header" id="app-header">
+            <div class="header-content">
+                <!-- Logo y nombre de la aplicación -->
+                <div class="logo-section">
+                    <img src="/assets/gestus.png" alt="Gestus Logo" class="logo-image">
+                    <h1 class="logo-text">Sistema Web Gestus</h1>
+                </div>
+                
+                <!-- Menú de navegación principal -->
+                <nav class="main-nav" id="main-nav">
+                    <a href="#/" class="nav-link" data-route="home">Inicio</a>
+                    <a href="#/about" class="nav-link" data-route="about">Acerca de</a>
+                    <a href="#/services" class="nav-link" data-route="services">Servicios</a>
+                    <a href="#/events" class="nav-link" data-route="events">Eventos</a>
+                    <a href="#/contact" class="nav-link" data-route="contact">Contacto</a>
+                </nav>
+
+                <!-- Botones de usuario (cambian según si está logueado o no) -->
+                <div class="user-actions" id="user-actions">
+                    <!-- Botones para usuarios NO logueados -->
+                    <div class="guest-actions" id="guest-actions">
+                        <a href="#/login" class="btn-secondary" data-route="login">Iniciar Sesión</a>
+                        <a href="#/register" class="btn-primary" data-route="register">Registrarse</a>
+                    </div>
+                    
+                    <!-- Botones para usuarios logueados -->
+                    <div class="authenticated-actions" id="authenticated-actions" style="display: none;">
+                        <span class="user-name" id="user-name">Usuario</span>
+                        <a href="#/dashboard" class="btn-primary" data-route="dashboard">Dashboard</a>
+                        <button onclick="logout()" class="btn-secondary logout-btn">Cerrar Sesión</button>
+                    </div>
+                </div>
+
+                <!-- Botón del menú móvil (las tres rayitas) -->
+                <button class="mobile-menu-toggle" id="mobile-menu-toggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Área principal donde se muestra el contenido de cada página -->
+        <main class="app-main" id="app-main">
+            <!-- Spinner de carga (la ruedita que gira mientras carga) -->
+            <div class="loading-spinner" id="loading-spinner">
+                <div class="spinner"></div>
+                <p>Cargando...</p>
+            </div>
+
+            <!-- Contenedor donde se carga el contenido dinámico -->
+            <div class="content-container" id="content-container">
+                <!-- El contenido de cada página se carga aquí dinámicamente -->
+            </div>
+        </main>
+
+        <!-- Pie de página con información de contacto y enlaces -->
+        <footer class="app-footer" id="app-footer">
+            <div class="footer-content">
+                <!-- Información sobre el proyecto -->
+                <div class="footer-section">
+                    <h4>Sistema Web Gestus</h4>
+                    <p>Proyecto desarrollado por estudiantes de Ingeniería en Desarrollo y Gestión de Software 
+                        de la Universidad Tecnológica de Santa Catarina. Creamos herramientas educativas 
+                        basadas en reconocimiento de gestos.</p>
+                </div>
+                
+                <!-- Enlaces rápidos a las páginas principales -->
+                <div class="footer-section">
+                    <h4>Enlaces Rápidos</h4>
+                    <ul>
+                        <li><a href="#/" data-route="home">Inicio</a></li>
+                        <li><a href="#/about" data-route="about">Acerca de</a></li>
+                        <li><a href="#/services" data-route="services">Servicios</a></li>
+                        <li><a href="#/contact" data-route="contact">Contacto</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Información de contacto -->
+                <div class="footer-section">
+                    <h4>Contacto</h4>
+                    <p>📧 info@gestus.com</p>
+                    <p>📞 +52 81 2090 6862</p>
+                    <p>📍 Santa Catarina, Nuevo León, México</p>
+                </div>
+            </div>
+            
+            <!-- Copyright -->
+            <div class="footer-bottom">
+                <p>&copy; 2025 Sistema Web Gestus. Todos los derechos reservados.</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Registro del Service Worker para funcionalidad offline -->
+    <script>
+        // Verifica si el navegador soporta Service Workers
+        if ('serviceWorker' in navigator) {
+            // Cuando la página termina de cargar, registra el Service Worker
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/js/sw.js')
+                    .then(registration => {
+                        console.log('Service Worker registrado correctamente:', registration);
+                    })
+                    .catch(registrationError => {
+                        console.log('Error al registrar Service Worker:', registrationError);
+                    });
+            });
+        }
+    </script>
+
+    <!-- Archivo JavaScript principal de la aplicación -->
+    <script src="/js/app-shell.js"></script>
+</body>
+</html>

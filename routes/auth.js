@@ -5,6 +5,13 @@ const { generateTokens, verifyToken, isTokenExpiringSoon } = require('../utils/j
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * tags:
+ *   name: Authentication
+ *   description: Endpoints para autenticación de usuarios
+ */
+
 // Middleware para validar token JWT
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -36,6 +43,65 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Registro de usuario
+/**
+ * @swagger
+ * /api/auth/register:
+ *   post:
+ *     summary: Registrar un nuevo usuario
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - password
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
+ *                 description: Nombre completo del usuario
+ *                 example: "Juan Pérez"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Correo electrónico del usuario
+ *                 example: "juan@ejemplo.com"
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *                 description: Contraseña del usuario
+ *                 example: "miPassword123"
+ *     responses:
+ *       201:
+ *         description: Usuario registrado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
+ *       400:
+ *         description: Datos de entrada inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       409:
+ *         description: El email ya está registrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 router.post('/register', [
     body('name')
         .trim()
@@ -78,7 +144,8 @@ router.post('/register', [
         const tokens = generateTokens({
             id: user.id,
             email: user.email,
-            name: user.name
+            name: user.name,
+            role: user.role
         });
 
         res.status(201).json({
@@ -100,6 +167,57 @@ router.post('/register', [
 });
 
 // Login de usuario
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: Iniciar sesión de usuario
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Correo electrónico del usuario
+ *                 example: "juan@ejemplo.com"
+ *               password:
+ *                 type: string
+ *                 description: Contraseña del usuario
+ *                 example: "miPassword123"
+ *     responses:
+ *       200:
+ *         description: Login exitoso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
+ *       400:
+ *         description: Datos de entrada inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Credenciales inválidas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 router.post('/login', [
     body('email')
         .isEmail()
@@ -144,7 +262,8 @@ router.post('/login', [
         const tokens = generateTokens({
             id: user.id,
             email: user.email,
-            name: user.name
+            name: user.name,
+            role: user.role
         });
 
         res.json({
@@ -217,7 +336,8 @@ router.post('/refresh', [
         const tokens = generateTokens({
             id: user.id,
             email: user.email,
-            name: user.name
+            name: user.name,
+            role: user.role
         });
         
         res.json({

@@ -5,14 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Sistema Web</title>
-    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <div class="dashboard-container">
         <header class="dashboard-header">
             <div class="header-content">
                 <div class="dashboard-logo">
-                    <img src="gestus.png" alt="Gestus Logo" class="logo-image">
+                    <img src="/assets/gestus.png" alt="Gestus Logo" class="logo-image">
                     <h1 class="logo-text">Sistema Web Gestus</h1>
                 </div>
                 <div class="user-info">
@@ -43,6 +44,10 @@
                         <label>Fecha de registro:</label>
                         <span id="profileDate">-</span>
                     </div>
+                    <div class="info-item">
+                        <label>Rol:</label>
+                        <span id="profileRole" class="role-badge">-</span>
+                    </div>
                 </div>
             </div>
 
@@ -51,11 +56,25 @@
                 <div class="action-buttons">
                     <button onclick="loadUserProfile()" class="action-btn">Actualizar Perfil</button>
                     <button onclick="showChangePassword()" class="action-btn">Cambiar Contraseña</button>
+                    
+                    <!-- Botones específicos por rol -->
+                    <button id="adminPanelBtn" onclick="goToAdminPanel()" class="action-btn admin-btn" style="display: none;">
+                        <i class="fas fa-cog"></i> Panel de Administración
+                    </button>
+                    <button id="professorPanelBtn" onclick="goToProfessorPanel()" class="action-btn professor-btn" style="display: none;">
+                        <i class="fas fa-chalkboard-teacher"></i> Panel de Profesor
+                    </button>
+                    <button id="studentPanelBtn" onclick="goToStudentPanel()" class="action-btn student-btn" style="display: none;">
+                        <i class="fas fa-graduation-cap"></i> Panel de Estudiante
+                    </button>
+                    <button id="parentPanelBtn" onclick="goToParentPanel()" class="action-btn parent-btn" style="display: none;">
+                        <i class="fas fa-users"></i> Panel de Padre
+                    </button>
                 </div>
             </div>
         </main>
     </div>
 
-    <script src="dashboard.js"></script>
+    <script src="/js/dashboard.js"></script>
 </body>
 </html>

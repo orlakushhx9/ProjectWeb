@@ -1,5 +1,5 @@
 // Configuración de la API
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 // Elementos del DOM
 const loginForm = document.getElementById('loginForm');
@@ -87,7 +87,7 @@ async function loginUser(email, password) {
             
             // Simular redirección (aquí podrías redirigir a otra página)
             setTimeout(() => {
-                window.location.href = '/dashboard.html';
+                window.location.href = '/dashboard';
             }, 1500);
         } else {
             showMessage(data.message || 'Error en el login', 'error');
@@ -120,7 +120,7 @@ async function registerUser(name, email, password) {
             
             // Simular redirección
             setTimeout(() => {
-                window.location.href = '/dashboard.html';
+                window.location.href = '/dashboard';
             }, 1500);
         } else {
             showMessage(data.message || 'Error en el registro', 'error');
@@ -333,10 +333,10 @@ window.addEventListener('load', async () => {
         .then(data => {
             if (data === true) {
                 // Token refrescado exitosamente, redirigir
-                window.location.href = '/dashboard.html';
+                window.location.href = '/dashboard';
             } else if (data && data.success) {
                 // Usuario autenticado, redirigir
-                window.location.href = '/dashboard.html';
+                window.location.href = '/dashboard';
             } else {
                 // Token inválido, limpiar localStorage
                 localStorage.removeItem('token');
@@ -358,7 +358,7 @@ function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
-    window.location.href = '/home.html';
+    window.location.href = '/home';
 }
 
 window.logout = logout;
