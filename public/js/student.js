@@ -140,25 +140,35 @@ class StudentPanel {
 
     async loadDashboardData(silent = false) {
         try {
+            console.log('[Student] ===== loadDashboardData iniciado =====');
             // Solo mostrar loading si NO es actualización silenciosa
             if (!silent) {
                 this.showLoading(true);
             }
             
             // Cargar evaluaciones del profesor primero
+            console.log('[Student] Paso 1: Cargando evaluaciones...');
             await this.loadEvaluations();
+            console.log('[Student] Paso 1 completado. Evaluaciones:', this.evaluations.length);
             
             // Cargar prácticas de Firebase
+            console.log('[Student] Paso 2: Cargando prácticas...');
             await this.loadPractices();
+            console.log('[Student] Paso 2 completado. Prácticas:', this.practices.length);
             
             // Combinar evaluaciones con prácticas
+            console.log('[Student] Paso 3: Combinando prácticas y evaluaciones...');
             this.combinePracticesAndEvaluations();
+            console.log('[Student] Paso 3 completado. Total prácticas combinadas:', this.practices.length);
             
             // Actualizar estadísticas del dashboard
+            console.log('[Student] Paso 4: Actualizando estadísticas...');
             this.updateDashboardStats();
+            console.log('[Student] ===== loadDashboardData completado =====');
             
         } catch (error) {
-            console.error('Error cargando dashboard:', error);
+            console.error('[Student] ❌ Error cargando dashboard:', error);
+            console.error('[Student] Stack:', error.stack);
             if (!silent) {
                 this.showMessage('Error cargando datos del dashboard', 'error');
             }
@@ -271,21 +281,38 @@ class StudentPanel {
 
     async loadPractices() {
         try {
-            console.log('[Student] Cargando prácticas...');
+            console.log('[Student] ===== INICIANDO CARGA DE PRÁCTICAS =====');
+            console.log('[Student] Token disponible:', !!this.token);
+            console.log('[Student] API Base URL:', window.API_BASE_URL || '/api');
             
             // SIEMPRE cargar desde la API primero (Firebase Admin)
-            console.log('[Student] Cargando prácticas desde API...');
-            const response = await fetch(`${window.API_BASE_URL || '/api'}/student/my-attempts`, {
+            const apiUrl = `${window.API_BASE_URL || '/api'}/student/my-attempts`;
+            console.log('[Student] Cargando prácticas desde API:', apiUrl);
+            
+            const response = await fetch(apiUrl, {
                 headers: {
-                    'Authorization': `Bearer ${this.token}`
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json'
                 }
+            });
+            
+            console.log('[Student] Respuesta recibida:', {
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok
             });
 
             if (!response.ok) {
-                console.warn(`[Student] Error en respuesta de API: ${response.status}`);
-                const errorText = await response.text();
-                console.warn(`[Student] Detalles del error:`, errorText);
+                console.error(`[Student] ❌ Error en respuesta de API: ${response.status} ${response.statusText}`);
+                try {
+                    const errorData = await response.json();
+                    console.error(`[Student] Detalles del error:`, errorData);
+                } catch (e) {
+                    const errorText = await response.text();
+                    console.error(`[Student] Error como texto:`, errorText);
+                }
                 this.practices = [];
+                console.log('[Student] Prácticas establecidas como array vacío debido a error');
             } else {
                 const data = await response.json();
                 console.log('[Student] Respuesta de my-attempts:', {
@@ -363,12 +390,29 @@ class StudentPanel {
             this.updateProfileStats();
             
         } catch (error) {
-            console.error('[Student] Error cargando prácticas:', error);
-            console.error('[Student] Stack:', error.stack);
-            this.showMessage('Error cargando prácticas', 'error');
-            // Si hay error, mostrar lista vacía
-            this.practices = [];
-            this.renderPracticesTable();
+            console.error('[Student] ❌ ERROR CRÍTICO cargando prácticas:', error);
+            console.error('[Student] Tipo de error:', error.constructor.name);
+            console.error('[Student] Mensaje:', error.message);
+            console.error('[Student] Stack completo:', error.stack);
+            
+            // Asegurarse de que practices sea un array
+            if (!Array.isArray(this.practices)) {
+                this.practices = [];
+            }
+            
+            // Intentar renderizar incluso con error
+            try {
+                this.renderPracticesTable();
+                this.renderRecentPractices();
+                this.updateDashboardStats();
+                this.updateProfileStats();
+            } catch (renderError) {
+                console.error('[Student] Error al renderizar después de fallo:', renderError);
+            }
+            
+            if (!silent) {
+                this.showMessage('Error cargando prácticas: ' + error.message, 'error');
+            }
         }
     }
     
