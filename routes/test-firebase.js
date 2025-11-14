@@ -37,21 +37,59 @@ router.get('/test-firebase', async (req, res) => {
             console.error('[Test Firebase] ❌ Error obteniendo gestos:', gestureError.message);
         }
         
+        // Obtener estudiantes de MySQL para comparar
+        const User = require('../models/User');
+        let mysqlStudents = [];
+        let studentsWithFirebaseUid = 0;
+        let studentsWithoutFirebaseUid = 0;
+        
+        try {
+            mysqlStudents = await User.findByRole('estudiante');
+            studentsWithFirebaseUid = mysqlStudents.filter(s => s.firebase_uid).length;
+            studentsWithoutFirebaseUid = mysqlStudents.filter(s => !s.firebase_uid).length;
+        } catch (mysqlError) {
+            console.error('[Test Firebase] Error obteniendo estudiantes de MySQL:', mysqlError.message);
+        }
+
         res.json({
             success: true,
             message: 'Prueba de conexión Firebase completada',
             data: {
                 environment: envCheck,
-                users: {
-                    count: users.length,
-                    sample: users.slice(0, 3).map(u => ({ email: u.email, firebase_uid: u.firebase_uid }))
+                firebase: {
+                    users: {
+                        count: users.length,
+                        sample: users.slice(0, 3).map(u => ({ email: u.email, firebase_uid: u.firebase_uid }))
+                    },
+                    gestureAttempts: {
+                        totalUsers: gestureAttempts.length,
+                        totalAttempts: gestureAttempts.reduce((sum, g) => sum + g.attempts.length, 0),
+                        sample: gestureAttempts.slice(0, 2).map(g => ({
+                            firebase_uid: g.firebase_uid,
+                            attemptsCount: g.attempts.length
+                        })),
+                        allFirebaseUids: gestureAttempts.map(g => g.firebase_uid)
+                    }
                 },
-                gestureAttempts: {
-                    totalUsers: gestureAttempts.length,
-                    sample: gestureAttempts.slice(0, 2).map(g => ({
-                        firebase_uid: g.firebase_uid,
-                        attemptsCount: g.attempts.length
-                    }))
+                mysql: {
+                    students: {
+                        total: mysqlStudents.length,
+                        withFirebaseUid: studentsWithFirebaseUid,
+                        withoutFirebaseUid: studentsWithoutFirebaseUid,
+                        sample: mysqlStudents.slice(0, 3).map(s => ({
+                            id: s.id,
+                            email: s.email,
+                            firebase_uid: s.firebase_uid || 'NO TIENE'
+                        }))
+                    }
+                },
+                matching: {
+                    firebaseUidsInMySQL: gestureAttempts.filter(g => 
+                        mysqlStudents.some(s => s.firebase_uid === g.firebase_uid)
+                    ).length,
+                    firebaseUidsNotInMySQL: gestureAttempts.filter(g => 
+                        !mysqlStudents.some(s => s.firebase_uid === g.firebase_uid)
+                    ).map(g => g.firebase_uid)
                 }
             }
         });
