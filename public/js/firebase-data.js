@@ -1,17 +1,4 @@
-// Firebase Data Service - ES6 Module
-// Este archivo DEBE cargarse como módulo ES6: <script type="module" src="/js/firebase-data.js"></script>
-// NO usar require() - este archivo usa import/export de ES6
-
-// Verificar que estamos en un contexto de módulo ES6
-if (typeof require !== 'undefined') {
-  console.error('[Firebase Data] ❌ ERROR: Este archivo debe cargarse como módulo ES6, no como CommonJS');
-  console.error('[Firebase Data] Asegúrate de usar: <script type="module" src="/js/firebase-data.js"></script>');
-  throw new Error('firebase-data.js debe cargarse como módulo ES6 (type="module")');
-}
-
-console.log('[Firebase Data] ✅ Cargado como módulo ES6');
-
-import { initializeApp, getApp } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js';
 import {
   getDatabase,
   ref,
@@ -21,78 +8,21 @@ import {
   off
 } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js';
 
-// Obtener configuración de Firebase desde window
+const firebaseConfig = window.__FIREBASE_CONFIG__;
+
 let app = null;
 let database = null;
 
-// Función para inicializar Firebase
-const initializeFirebase = () => {
-  const firebaseConfig = window.__FIREBASE_CONFIG__;
-  
-  if (!firebaseConfig) {
-    console.warn('[Firebase Data] ⚠️ No se encontró window.__FIREBASE_CONFIG__. Configura las credenciales de Firebase antes de cargar firebase-data.js');
-    return false;
-  }
-  
-  // Si ya está inicializado, no hacer nada
-  if (app && database) {
-    console.log('[Firebase Data] Firebase ya está inicializado');
-    return true;
-  }
-  
+if (!firebaseConfig) {
+  console.warn('[Firebase] No se encontró window.__FIREBASE_CONFIG__. Configura las credenciales de Firebase antes de cargar firebase-data.js');
+} else {
   try {
-    console.log('[Firebase Data] Inicializando Firebase App...');
-    console.log('[Firebase Data] Config:', {
-      apiKey: firebaseConfig.apiKey ? 'Definido' : 'NO DEFINIDO',
-      databaseURL: firebaseConfig.databaseURL || 'NO DEFINIDO',
-      projectId: firebaseConfig.projectId || 'NO DEFINIDO'
-    });
-    
-    // Si ya hay una app inicializada, obtenerla en lugar de crear una nueva
-    try {
-      app = initializeApp(firebaseConfig);
-      console.log('[Firebase Data] ✅ Firebase App inicializado');
-    } catch (initError) {
-      // Si ya existe una app, obtenerla
-      if (initError.code === 'app/duplicate-app') {
-        console.log('[Firebase Data] App ya existe, obteniendo referencia...');
-        app = getApp();
-        console.log('[Firebase Data] ✅ Firebase App obtenida');
-      } else {
-        throw initError;
-      }
-    }
-    
-    console.log('[Firebase Data] Obteniendo Database...');
+    app = initializeApp(firebaseConfig);
     database = getDatabase(app);
-    console.log('[Firebase Data] ✅ Database obtenido');
-    return true;
   } catch (error) {
-    console.error('[Firebase Data] ❌ Error inicializando Firebase:', error);
-    console.error('[Firebase Data] Stack:', error.stack);
-    return false;
+    console.error('[Firebase] Error inicializando Firebase:', error);
   }
-};
-
-console.log('[Firebase Data] Inicializando módulo...');
-console.log('[Firebase Data] window.__FIREBASE_CONFIG__ existe?', !!window.__FIREBASE_CONFIG__);
-
-// Intentar inicializar inmediatamente
-const initialized = initializeFirebase();
-
-// Si no se pudo inicializar, intentar después de un breve delay
-// (por si window.__FIREBASE_CONFIG__ se carga después)
-if (!initialized && !window.__FIREBASE_CONFIG__) {
-  console.log('[Firebase Data] Reintentando inicialización después de 500ms...');
-  setTimeout(() => {
-    if (!database) {
-      initializeFirebase();
-      console.log('[Firebase Data] Estado después del reintento - app:', !!app, 'database:', !!database);
-    }
-  }, 500);
 }
-
-console.log('[Firebase Data] Estado final - app:', !!app, 'database:', !!database);
 
 const ensureDatabase = () => {
   if (!database) {
@@ -265,16 +195,10 @@ const getStudentsByProfessorUid = async (professorUid) => {
     .map(([uid, user]) => ({ uid, ...user }));
 };
 
-// Exponer servicio globalmente
-// Usar getter para isReady para que se actualice dinámicamente
 window.firebaseDataService = {
-  get isReady() {
-    return Boolean(database);
-  },
+  isReady: Boolean(database),
   app,
-  get database() {
-    return database;
-  },
+  database,
   findUserByEmail,
   getUsersByRole,
   getAllUsers,
@@ -285,8 +209,4 @@ window.firebaseDataService = {
   getChildrenByParentUid,
   getStudentsByProfessorUid
 };
-
-console.log('[Firebase Data] ✅ window.firebaseDataService expuesto');
-console.log('[Firebase Data] isReady:', window.firebaseDataService.isReady);
-console.log('[Firebase Data] database disponible:', !!window.firebaseDataService.database);
 
