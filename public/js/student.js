@@ -157,31 +157,32 @@ class StudentPanel {
                 this.showLoading(true);
             }
             
-            // Cargar evaluaciones del profesor primero
-            console.log('[Student] Paso 1: Cargando evaluaciones...');
-            await this.loadEvaluations();
-            console.log('[Student] Paso 1 completado. Evaluaciones:', this.evaluations.length);
-            
-            // Cargar prácticas desde la API (NO depende de Firebase)
-            // Esto asegura que siempre tengamos prácticas, incluso si Firebase falla
-            console.log('[Student] Paso 2: Cargando prácticas desde API...');
-            const practicesBeforeAPI = this.practices.length;
-            await this.loadPractices();
-            console.log('[Student] Paso 2 completado. Prácticas antes de API:', practicesBeforeAPI, 'Después:', this.practices.length);
-            
-            // Si Firebase ya cargó prácticas, combinarlas con las de la API
-            if (practicesBeforeAPI > 0 && this.practices.length > practicesBeforeAPI) {
-                console.log('[Student] Combinando prácticas de Firebase y API...');
-                // Las prácticas ya están combinadas en loadPractices()
+            // Paso 1: Si Firebase ya cargó prácticas, mostrar estadísticas primero
+            if (this.practices.length > 0) {
+                console.log('[Student] Paso 1: Mostrando prácticas de Firebase ya cargadas...');
+                this.updateDashboardStats();
+                console.log(`[Student] Prácticas de Firebase: ${this.practices.length}`);
             }
             
-            // Combinar evaluaciones con prácticas
-            console.log('[Student] Paso 3: Combinando prácticas y evaluaciones...');
-            this.combinePracticesAndEvaluations();
-            console.log('[Student] Paso 3 completado. Total prácticas combinadas:', this.practices.length);
+            // Paso 2: Cargar evaluaciones del profesor
+            console.log('[Student] Paso 2: Cargando evaluaciones...');
+            await this.loadEvaluations();
+            console.log('[Student] Paso 2 completado. Evaluaciones:', this.evaluations.length);
             
-            // Actualizar estadísticas del dashboard
-            console.log('[Student] Paso 4: Actualizando estadísticas...');
+            // Paso 3: Cargar prácticas desde la API (NO depende de Firebase)
+            // Esto asegura que siempre tengamos prácticas, incluso si Firebase falla
+            console.log('[Student] Paso 3: Cargando prácticas desde API...');
+            const practicesBeforeAPI = this.practices.length;
+            await this.loadPractices();
+            console.log('[Student] Paso 3 completado. Prácticas antes de API:', practicesBeforeAPI, 'Después:', this.practices.length);
+            
+            // Paso 4: Combinar evaluaciones con prácticas
+            console.log('[Student] Paso 4: Combinando prácticas y evaluaciones...');
+            this.combinePracticesAndEvaluations();
+            console.log('[Student] Paso 4 completado. Total prácticas combinadas:', this.practices.length);
+            
+            // Paso 5: Actualizar estadísticas del dashboard (final)
+            console.log('[Student] Paso 5: Actualizando estadísticas finales...');
             this.updateDashboardStats();
             console.log('[Student] ===== loadDashboardData completado =====');
             
@@ -274,22 +275,9 @@ class StudentPanel {
             this.evaluations = data.data?.evaluations || [];
             
             if (this.evaluations.length > 0) {
-                console.log(`[Student] ✅ Cargadas ${this.evaluations.length} evaluaciones del profesor`);
-                console.log('[Student] Muestra de evaluaciones:', this.evaluations.slice(0, 3).map(e => ({
-                    id: e.id,
-                    gesture: e.gesture_name,
-                    score: e.score
-                })));
-                
-                // Si ya hay prácticas cargadas, combinarlas
-                if (this.practices && this.practices.length > 0) {
-                    this.combinePracticesAndEvaluations();
-                    this.renderPracticesTable();
-                    this.renderRecentPractices();
-                    this.updateDashboardStats();
-                }
+                console.log(`[Estudiante] Cargadas ${this.evaluations.length} evaluaciones del profesor`);
             } else {
-                console.warn('[Student] ⚠️ No se encontraron evaluaciones para este estudiante');
+                console.warn('[Estudiante] ⚠️ No se encontraron evaluaciones para este estudiante');
             }
             
         } catch (error) {
@@ -374,26 +362,11 @@ class StudentPanel {
                 
                 console.log(`[Student] ✅ ${apiPractices.length} prácticas cargadas desde API`);
                 
-                // Si Firebase está disponible y tiene datos, combinar ambos
-                if (this.firebase?.service?.isReady && this.firebase?.uid && this.practices.length > 0) {
-                    console.log('[Student] Combinando prácticas de API y Firebase...');
-                    // Ya hay prácticas de Firebase, combinar sin duplicados
-                    const combined = [...this.practices];
-                    apiPractices.forEach(apiPractice => {
-                        const exists = combined.some(p => 
-                            p.sign === apiPractice.sign && 
-                            Math.abs(new Date(p.date) - new Date(apiPractice.date)) < 60000 // Mismo minuto
-                        );
-                        if (!exists) {
-                            combined.push(apiPractice);
-                        }
-                    });
-                    this.practices = combined;
-                    console.log(`[Student] ✅ Total combinado: ${this.practices.length} prácticas`);
-                } else {
-                    // Usar solo las prácticas de la API
-                    this.practices = apiPractices;
-                }
+            // Si Firebase está disponible y tiene datos, combinar ambos
+            // Nota: Las prácticas de Firebase se cargan en setupFirebaseIntegration()
+            // y se aplican mediante applyFirebasePractices()
+            // Aquí solo usamos las prácticas de la API
+            this.practices = apiPractices;
             }
             
             // Combinar con evaluaciones si ya están cargadas
@@ -436,12 +409,14 @@ class StudentPanel {
     }
     
     async setupFirebaseIntegration() {
-        // Esperar un poco para que firebase-data.js se cargue (si es módulo ES6)
+        console.log('[Firebase] Iniciando integración...');
+        
+        // Esperar a que firebase-data.js se cargue (si es módulo ES6)
         // Verificar si window.firebaseDataService existe
         if (!window.firebaseDataService) {
             console.log('[Firebase] Esperando a que firebaseDataService se cargue...');
-            // Esperar hasta 2 segundos
-            for (let i = 0; i < 20; i++) {
+            // Esperar hasta 5 segundos (50 intentos x 100ms)
+            for (let i = 0; i < 50; i++) {
                 await new Promise(resolve => setTimeout(resolve, 100));
                 if (window.firebaseDataService) {
                     break;
@@ -453,13 +428,17 @@ class StudentPanel {
         this.firebase.service = window.firebaseDataService || null;
         const service = this.firebase?.service;
         
-        console.log('[Firebase] Iniciando integración...');
-        console.log('[Firebase] window.firebaseDataService existe?', !!window.firebaseDataService);
         console.log('[Firebase] Service ready?', service?.isReady);
         console.log('[Firebase] User email:', this.userData?.email);
         
-        if (!service?.isReady) {
-            console.warn('[Firebase] ⚠️ Service no está listo. Continuando sin Firebase.');
+        if (!service) {
+            console.warn('[Firebase] ⚠️ window.firebaseDataService no está disponible. Verifica que firebase-data.js se haya cargado correctamente.');
+            return;
+        }
+        
+        if (!service.isReady) {
+            console.warn('[Firebase] ⚠️ Service no está listo (isReady: false). Verifica window.__FIREBASE_CONFIG__ y la inicialización de Firebase.');
+            console.warn('[Firebase] Continuando sin Firebase. Los datos se cargarán desde la API.');
             return;
         }
         
@@ -475,6 +454,7 @@ class StudentPanel {
             if (!firebaseUser) {
                 console.warn(`[Firebase] ⚠️ No se encontró un usuario con correo ${this.userData.email}`);
                 console.warn(`[Firebase] El usuario debe estar registrado en Firebase Realtime Database`);
+                console.warn(`[Firebase] Continuando sin Firebase. Los datos se cargarán desde la API.`);
                 return;
             }
 
@@ -483,25 +463,36 @@ class StudentPanel {
             this.updateProfileFromFirebase(firebaseUser);
 
             console.log(`[Firebase] Obteniendo intentos de gestos...`);
-            const initialAttempts = service.normalizeGestureAttempts(
-                await service.getGestureAttempts(firebaseUser.uid)
-            );
+            const rawAttempts = await service.getGestureAttempts(firebaseUser.uid);
             
+            const initialAttempts = service.normalizeGestureAttempts(rawAttempts);
             console.log(`[Firebase] ✓ Encontrados ${initialAttempts.length} intentos de gestos`);
-            this.applyFirebasePractices(initialAttempts);
+            
+            // Aplicar prácticas de Firebase pero NO actualizar estadísticas todavía
+            // loadDashboardData se encargará de actualizar las estadísticas en el orden correcto
+            this.applyFirebasePractices(initialAttempts, false);
 
             this.cleanupFirebaseListeners();
+            console.log(`[Firebase] Configurando listeners en tiempo real...`);
             this.firebase.unsubProfile = service.subscribeUserProfile(firebaseUser.uid, (profile) => {
                 if (profile) {
+                    console.log(`[Firebase] Perfil actualizado desde Firebase`);
                     this.updateProfileFromFirebase({ uid: firebaseUser.uid, ...profile });
                 }
             });
             this.firebase.unsubAttempts = service.subscribeGestureAttempts(firebaseUser.uid, (rawAttempts) => {
+                console.log(`[Firebase] Intentos actualizados desde Firebase`);
                 const attempts = service.normalizeGestureAttempts(rawAttempts);
-                this.applyFirebasePractices(attempts);
+                // Cuando se actualiza en tiempo real, sí actualizar estadísticas
+                this.applyFirebasePractices(attempts, true);
             });
+            console.log(`[Firebase] ✅ Integración con Firebase completada exitosamente`);
         } catch (error) {
-            console.error('Error configurando integración con Firebase:', error);
+            console.error('[Firebase] ❌ Error configurando integración con Firebase:', error);
+            console.error('[Firebase] Tipo de error:', error.constructor.name);
+            console.error('[Firebase] Mensaje:', error.message);
+            console.error('[Firebase] Stack:', error.stack);
+            console.warn('[Firebase] Continuando sin Firebase. Los datos se cargarán desde la API.');
         }
     }
 
@@ -540,26 +531,55 @@ class StudentPanel {
         }
     }
 
-    applyFirebasePractices(attempts) {
+    applyFirebasePractices(attempts, updateStats = true) {
         if (!Array.isArray(attempts)) {
-            this.practices = [];
-        } else {
-            this.practices = attempts.map((attempt, index) => ({
-                id: attempt.id || index,
-                gestureId: attempt.gestureId || null,
-                date: attempt.date || new Date().toISOString(),
-                sign: attempt.sign || 'Gesto',
-                score: typeof attempt.score === 'number' ? attempt.score : 0,
-                status: this.getPerformanceStatus(typeof attempt.score === 'number' ? attempt.score : 0),
-                raw: attempt.raw || null
-            }));
-            this.practices.sort((a, b) => new Date(b.date) - new Date(a.date));
+            console.log('[Firebase] No hay intentos de Firebase o no es un array');
+            return;
         }
+        
+        console.log(`[Firebase] Aplicando ${attempts.length} prácticas de Firebase`);
+        
+        // Convertir intentos de Firebase a formato de práctica
+        const firebasePractices = attempts.map((attempt, index) => ({
+            id: attempt.id || `firebase-${index}`,
+            gestureId: attempt.gestureId || null,
+            date: attempt.date || new Date().toISOString(),
+            sign: attempt.sign || 'Gesto',
+            score: typeof attempt.score === 'number' ? attempt.score : 0,
+            status: this.getPerformanceStatus(typeof attempt.score === 'number' ? attempt.score : 0),
+            source: 'firebase',
+            raw: attempt.raw || attempt
+        }));
+        
+        // Combinar con prácticas existentes (de la API)
+        // Eliminar duplicados basándose en fecha y signo
+        const existingPractices = this.practices || [];
+        const combined = [...existingPractices];
+        
+        firebasePractices.forEach(fbPractice => {
+            const exists = combined.some(p => 
+                p.sign === fbPractice.sign && 
+                Math.abs(new Date(p.date) - new Date(fbPractice.date)) < 60000 // Mismo minuto
+            );
+            if (!exists) {
+                combined.push(fbPractice);
+            }
+        });
+        
+        // Ordenar por fecha (más recientes primero)
+        combined.sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        this.practices = combined;
+        console.log(`[Firebase] ✅ Total de prácticas después de combinar: ${this.practices.length} (${firebasePractices.length} de Firebase, ${existingPractices.length} de API)`);
 
-        this.renderPracticesTable();
-        this.renderRecentPractices();
-        this.updateDashboardStats();
-        this.updateProfileStats();
+        // Solo actualizar estadísticas si se solicita explícitamente
+        // Esto permite que loadDashboardData controle cuándo actualizar
+        if (updateStats) {
+            this.renderPracticesTable();
+            this.renderRecentPractices();
+            this.updateDashboardStats();
+            this.updateProfileStats();
+        }
     }
 
     getPerformanceStatus(score) {
@@ -583,29 +603,40 @@ class StudentPanel {
 
     updateDashboardStats() {
         console.log('[Dashboard] Actualizando estadísticas...');
-        console.log('[Dashboard] Total prácticas:', this.practices.length);
-        console.log('[Dashboard] Total evaluaciones:', this.evaluations?.length || 0);
         
         // Total de prácticas (incluye evaluaciones y prácticas de Firebase)
         const totalPractices = this.practices.length;
         const evaluatedCount = this.practices.filter(p => p.type === 'evaluated').length;
-        const firebaseCount = totalPractices - evaluatedCount;
+        const evaluationsCount = this.evaluations?.length || 0;
+        
+        console.log('[Dashboard] Total prácticas:', totalPractices);
+        console.log('[Dashboard] Total evaluaciones:', evaluationsCount);
         
         document.getElementById('totalPractices').textContent = totalPractices;
         
-        // Calcular promedio y mejor puntuación de todas las prácticas (evaluadas y no evaluadas)
+        // Calcular promedio y mejor puntuación
         let averageScore = 0;
         let bestScore = 0;
         
         if (this.practices.length > 0) {
-            // Calcular promedio de todas las prácticas combinadas
-            averageScore = Math.round(this.practices.reduce((sum, p) => sum + (p.score || 0), 0) / totalPractices);
-            bestScore = Math.max(...this.practices.map(p => p.score || 0));
-            
-            if (evaluatedCount > 0) {
-                console.log(`[Dashboard] ✓ Estadísticas combinadas: ${totalPractices} prácticas totales (${evaluatedCount} evaluadas, ${firebaseCount} de Firebase), promedio ${averageScore}%`);
+            // Si hay evaluaciones, usar solo el promedio de las evaluaciones
+            if (evaluationsCount > 0) {
+                const evaluatedPractices = this.practices.filter(p => p.type === 'evaluated');
+                if (evaluatedPractices.length > 0) {
+                    averageScore = Math.round(evaluatedPractices.reduce((sum, p) => sum + (p.score || 0), 0) / evaluatedPractices.length);
+                    bestScore = Math.max(...evaluatedPractices.map(p => p.score || 0));
+                    console.log(`[Dashboard] ✓ Usando promedio de evaluaciones: ${averageScore}% (${evaluationsCount} evaluaciones)`);
+                } else {
+                    // Si hay evaluaciones pero no se han combinado todavía, usar todas las prácticas
+                    averageScore = Math.round(this.practices.reduce((sum, p) => sum + (p.score || 0), 0) / totalPractices);
+                    bestScore = Math.max(...this.practices.map(p => p.score || 0));
+                    console.log(`[Dashboard] ✓ Usando promedio de prácticas: ${averageScore}% (${totalPractices} prácticas)`);
+                }
             } else {
-                console.log(`[Dashboard] ✓ Usando promedio de prácticas: ${averageScore}% (${this.practices.length} prácticas)`);
+                // Si no hay evaluaciones, usar todas las prácticas
+                averageScore = Math.round(this.practices.reduce((sum, p) => sum + (p.score || 0), 0) / totalPractices);
+                bestScore = Math.max(...this.practices.map(p => p.score || 0));
+                console.log(`[Dashboard] ✓ Usando promedio de prácticas: ${averageScore}% (${totalPractices} prácticas)`);
             }
         } else {
             console.warn('[Dashboard] ⚠️ No hay prácticas ni evaluaciones para mostrar');
