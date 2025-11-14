@@ -200,24 +200,33 @@ function normalizeGestureAttempts(rawAttempts = {}) {
 }
 
 async function getGestureAttemptsForUser(firebaseUid) {
-    initializeFirebaseAdmin();
+    try {
+        initializeFirebaseAdmin();
 
-    if (!firebaseUid) {
-        return {
-            summary: {
-                totalAttempts: 0,
-                averageScore: 0,
-                lastPractice: null,
-                bestScore: 0,
-                progressPercent: 0
-            },
-            attempts: []
-        };
-    }
+        if (!firebaseUid) {
+            console.log('[Firebase Admin] ⚠️ firebaseUid no proporcionado');
+            return {
+                summary: {
+                    totalAttempts: 0,
+                    averageScore: 0,
+                    lastPractice: null,
+                    bestScore: 0,
+                    progressPercent: 0
+                },
+                attempts: []
+            };
+        }
 
-    const snapshot = await admin.database().ref(`gestureAttempts/${firebaseUid}`).once('value');
-    const raw = snapshot.val() || {};
-    const attempts = normalizeGestureAttempts(raw);
+        console.log(`[Firebase Admin] Obteniendo gestos para usuario: ${firebaseUid}`);
+        const snapshot = await admin.database().ref(`gestureAttempts/${firebaseUid}`).once('value');
+        const raw = snapshot.val() || {};
+        
+        console.log(`[Firebase Admin] Datos obtenidos para ${firebaseUid}:`, {
+            hasData: !!raw && Object.keys(raw).length > 0,
+            keys: raw ? Object.keys(raw) : []
+        });
+        
+        const attempts = normalizeGestureAttempts(raw);
 
     const totalAttempts = attempts.length;
     const averageScore = totalAttempts
@@ -242,15 +251,30 @@ async function getGestureAttemptsForUser(firebaseUid) {
 
 
 async function getAllGestureAttempts() {
-    initializeFirebaseAdmin();
-
-    const snapshot = await admin.database().ref('gestureAttempts').once('value');
-    const data = snapshot.val() || {};
-
-    return Object.entries(data).map(([firebaseUid, attempts]) => ({
-        firebase_uid: firebaseUid,
-        attempts: normalizeGestureAttempts(attempts)
-    }));
+    try {
+        initializeFirebaseAdmin();
+        console.log('[Firebase Admin] Obteniendo todos los gestureAttempts...');
+        
+        const snapshot = await admin.database().ref('gestureAttempts').once('value');
+        const data = snapshot.val() || {};
+        
+        console.log('[Firebase Admin] Datos obtenidos:', {
+            totalUsers: Object.keys(data).length,
+            users: Object.keys(data)
+        });
+        
+        const result = Object.entries(data).map(([firebaseUid, attempts]) => ({
+            firebase_uid: firebaseUid,
+            attempts: normalizeGestureAttempts(attempts)
+        }));
+        
+        console.log('[Firebase Admin] ✅ Total de usuarios con gestos:', result.length);
+        return result;
+    } catch (error) {
+        console.error('[Firebase Admin] ❌ Error en getAllGestureAttempts:', error.message);
+        console.error('[Firebase Admin] Stack:', error.stack);
+        throw error;
+    }
 }
 
 module.exports = {

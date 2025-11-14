@@ -77,15 +77,18 @@ router.get('/gesture-attempts', authenticateToken, requireProfessorOrAdmin, asyn
 
         let attemptsByUser = [];
         try {
+            console.log('[Professor] Intentando obtener gestos de Firebase...');
             attemptsByUser = await getAllGestureAttempts();
+            console.log('[Professor] ✅ Gestos obtenidos:', attemptsByUser.length, 'usuarios');
         } catch (firebaseError) {
-            console.error('Error al obtener gestos de Firebase:', firebaseError);
+            console.error('[Professor] ❌ Error al obtener gestos de Firebase:', firebaseError.message);
+            console.error('[Professor] Stack completo:', firebaseError.stack);
             // Si Firebase falla, devolver lista vacía en lugar de error 500
             return res.json({
                 success: true,
                 data: {
                     attempts: [],
-                    warning: 'No se pudieron cargar los gestos de Firebase. Verifica la configuración de FIREBASE_SERVICE_ACCOUNT_JSON.'
+                    warning: `No se pudieron cargar los gestos de Firebase: ${firebaseError.message}. Verifica la configuración de FIREBASE_SERVICE_ACCOUNT_JSON en Vercel.`
                 }
             });
         }
