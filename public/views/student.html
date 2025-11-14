@@ -270,8 +270,10 @@
             appId: "1:190698040565:android:94f15817b3435ea136e9bc"
         };
     </script>
-    <script type="module" src="/js/firebase-data.js"></script>
+    <!-- Cargar student.js primero para inicializar firebaseDataService -->
+    <script type="module" src="/js/student.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="/js/student.js"></script>
+    <!-- Cargar firebase-data.js después de que student.js haya inicializado el servicio -->
+    <script type="module" src="/js/firebase-data.js"></script>
 </body>
 </html>
