@@ -273,19 +273,8 @@ class StudentPanel {
         try {
             console.log('[Student] Cargando prácticas...');
             
-            // Intentar usar Firebase si está disponible
-            if (this.firebase?.service?.isReady && this.firebase?.uid) {
-                console.log('[Student] Usando Firebase para cargar prácticas');
-                // Los datos se actualizan en tiempo real mediante Firebase
-                this.renderPracticesTable();
-                this.renderRecentPractices();
-                this.updateDashboardStats();
-                this.updateProfileStats();
-                return;
-            }
-
-            // Obtener prácticas desde la API (Firebase Admin)
-            console.log('[Student] Usando API para cargar prácticas');
+            // SIEMPRE cargar desde la API primero (Firebase Admin)
+            console.log('[Student] Cargando prácticas desde API...');
             const response = await fetch(`${window.API_BASE_URL || '/api'}/student/my-attempts`, {
                 headers: {
                     'Authorization': `Bearer ${this.token}`
@@ -293,7 +282,9 @@ class StudentPanel {
             });
 
             if (!response.ok) {
-                console.warn(`[Student] Error en respuesta: ${response.status}`);
+                console.warn(`[Student] Error en respuesta de API: ${response.status}`);
+                const errorText = await response.text();
+                console.warn(`[Student] Detalles del error:`, errorText);
                 this.practices = [];
             } else {
                 const data = await response.json();
@@ -303,23 +294,69 @@ class StudentPanel {
                     summary: data.data?.summary
                 });
                 
-                // Mapear datos de las prácticas
-                this.practices = (data.data.attempts || []).map(attempt => ({
-                    id: attempt.id || `${attempt.gestureId}-${attempt.timestamp}`,
-                    date: attempt.date || attempt.timestamp || new Date().toISOString(),
-                    sign: attempt.sign || attempt.gestureName || 'N/A',
-                    score: attempt.percentage || attempt.score || 0,
-                    status: this.getPerformanceStatus(attempt.percentage || attempt.score || 0)
-                }));
+                // Mapear datos de las prácticas desde la API
+                const apiPractices = (data.data?.attempts || []).map(attempt => {
+                    // Normalizar timestamp
+                    let date = attempt.date || attempt.timestamp || new Date().toISOString();
+                    if (typeof date === 'number') {
+                        date = new Date(date).toISOString();
+                    } else if (typeof date === 'string' && !date.includes('T')) {
+                        // Si es solo fecha, convertir a ISO
+                        date = new Date(date).toISOString();
+                    }
+                    
+                    // Normalizar puntuación
+                    let score = attempt.percentage || attempt.score || 0;
+                    if (typeof score === 'string') {
+                        score = parseFloat(score) || 0;
+                    }
+                    score = Math.max(0, Math.min(100, Math.round(score)));
+                    
+                    // Normalizar nombre del gesto
+                    const sign = attempt.sign || attempt.gestureName || attempt.detectedLabel || attempt.gestureId || 'Gesto';
+                    
+                    return {
+                        id: attempt.id || `${attempt.gestureId || 'gesto'}-${attempt.timestamp || Date.now()}`,
+                        date: date,
+                        sign: sign,
+                        score: score,
+                        status: this.getPerformanceStatus(score),
+                        source: 'api',
+                        raw: attempt // Guardar datos originales para debugging
+                    };
+                });
                 
-                console.log(`[Student] ✅ ${this.practices.length} prácticas cargadas`);
+                console.log(`[Student] ✅ ${apiPractices.length} prácticas cargadas desde API`);
+                
+                // Si Firebase está disponible y tiene datos, combinar ambos
+                if (this.firebase?.service?.isReady && this.firebase?.uid && this.practices.length > 0) {
+                    console.log('[Student] Combinando prácticas de API y Firebase...');
+                    // Ya hay prácticas de Firebase, combinar sin duplicados
+                    const combined = [...this.practices];
+                    apiPractices.forEach(apiPractice => {
+                        const exists = combined.some(p => 
+                            p.sign === apiPractice.sign && 
+                            Math.abs(new Date(p.date) - new Date(apiPractice.date)) < 60000 // Mismo minuto
+                        );
+                        if (!exists) {
+                            combined.push(apiPractice);
+                        }
+                    });
+                    this.practices = combined;
+                    console.log(`[Student] ✅ Total combinado: ${this.practices.length} prácticas`);
+                } else {
+                    // Usar solo las prácticas de la API
+                    this.practices = apiPractices;
+                }
             }
             
             // Combinar con evaluaciones si ya están cargadas
             if (this.evaluations && this.evaluations.length > 0) {
+                console.log('[Student] Combinando prácticas con evaluaciones...');
                 this.combinePracticesAndEvaluations();
             }
             
+            console.log(`[Student] ✅ Total final de prácticas: ${this.practices.length}`);
             this.renderPracticesTable();
             this.renderRecentPractices();
             this.updateDashboardStats();
@@ -327,6 +364,7 @@ class StudentPanel {
             
         } catch (error) {
             console.error('[Student] Error cargando prácticas:', error);
+            console.error('[Student] Stack:', error.stack);
             this.showMessage('Error cargando prácticas', 'error');
             // Si hay error, mostrar lista vacía
             this.practices = [];
