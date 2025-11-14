@@ -1,5 +1,6 @@
 const express = require('express');
 const User = require('../models/User');
+const Evaluation = require('../models/Evaluation');
 const { authenticateToken, requireStudent } = require('../middleware/auth');
 
 const router = express.Router();
@@ -66,6 +67,27 @@ router.get('/my-progress', authenticateToken, requireStudent, async (req, res) =
             }
         }
     });
+});
+
+// Obtener evaluaciones del estudiante hechas por profesores
+router.get('/my-evaluations', authenticateToken, requireStudent, async (req, res) => {
+    try {
+        const evaluations = await Evaluation.findByStudent(req.userData.id);
+        
+        res.json({
+            success: true,
+            data: {
+                evaluations: evaluations,
+                total: evaluations.length
+            }
+        });
+    } catch (error) {
+        console.error('Error al obtener evaluaciones del estudiante:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor'
+        });
+    }
 });
 
 // Obtener información del padre del estudiante (si tiene uno asignado)

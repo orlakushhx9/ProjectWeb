@@ -204,10 +204,73 @@
         </div>
     </div>
 
+    <!-- Modal | Detalles de Práctica -->
+    <div id="viewPracticeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Detalle de la Práctica</h3>
+                <span class="close" onclick="studentPanel.closeViewPracticeModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="practice-details">
+                    <div class="detail-row">
+                        <label>Fecha:</label>
+                        <span id="practiceDetailDate"></span>
+                    </div>
+                    <div class="detail-row">
+                        <label>Seña:</label>
+                        <span id="practiceDetailSign"></span>
+                    </div>
+                    <div class="detail-row">
+                        <label>Puntuación:</label>
+                        <span id="practiceDetailScore" class="score-badge"></span>
+                    </div>
+                    <div class="detail-row">
+                        <label>Estado:</label>
+                        <span id="practiceDetailStatus" class="status-badge"></span>
+                    </div>
+                    <div class="detail-row">
+                        <label>Confianza / Precisión:</label>
+                        <span id="practiceDetailConfidence"></span>
+                    </div>
+                    <div class="detail-row">
+                        <label>Detección:</label>
+                        <span id="practiceDetailDetected"></span>
+                    </div>
+                    <div class="detail-row">
+                        <label>Identificadores:</label>
+                        <div class="detail-tags" id="practiceDetailIds"></div>
+                    </div>
+                    <div class="detail-row">
+                        <label>Notas del Profesor:</label>
+                        <p id="practiceDetailNotes" class="comments-text"></p>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="studentPanel.closeViewPracticeModal()">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Success/Error Messages -->
     <div id="messageContainer" class="message-container"></div>
 
     <!-- Scripts -->
+    <script>
+        window.__FIREBASE_CONFIG__ = window.__FIREBASE_CONFIG__ || {
+            apiKey: "AIzaSyCjAHE9g_lUoOP4jx3ROiDK4tO6-OzQ5P4",
+            authDomain: "gestusproject.firebaseapp.com",
+            databaseURL: "https://gestusproject-default-rtdb.firebaseio.com",
+            projectId: "gestusproject",
+            storageBucket: "gestusproject.firebasestorage.app",
+            messagingSenderId: "190698040565",
+            appId: "1:190698040565:android:94f15817b3435ea136e9bc"
+        };
+    </script>
+    <script type="module" src="/js/firebase-data.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/js/student.js"></script>
 </body>

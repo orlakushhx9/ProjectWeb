@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { getFirebaseUsers } = require('../services/firebaseAdmin');
 
 const router = express.Router();
 
@@ -143,18 +144,96 @@ router.post('/create-user', authenticateToken, requireAdmin, [
  */
 router.get('/all', authenticateToken, requireAdmin, async (req, res) => {
     try {
-        const users = await User.findAll();
-        
+        const mysqlUsers = await User.findAll();
+        const normalizedMysqlUsers = mysqlUsers.map(user => {
+            const json = user.toJSON();
+            return {
+                ...json,
+                source: 'mysql',
+                displayId: json.id
+            };
+        });
+
+        const existingEmails = new Set(
+            normalizedMysqlUsers
+                .map(user => (user.email ? user.email.toLowerCase() : null))
+                .filter(Boolean)
+        );
+
+        try {
+            const firebaseUsers = await getFirebaseUsers(existingEmails);
+
+            for (const firebaseUser of firebaseUsers) {
+                try {
+                    let createdUser;
+                    
+                    // Verificar si tiene hash SHA-256 en passwordHash o pinHash
+                    const hasPasswordHash = firebaseUser.passwordHash && /^[a-f0-9]{64}$/i.test(firebaseUser.passwordHash);
+                    const hasPinHash = firebaseUser.pinHash && /^[a-f0-9]{64}$/i.test(firebaseUser.pinHash);
+                    
+                    // Usar passwordHash si existe, si no usar pinHash
+                    const hashToUse = hasPasswordHash ? firebaseUser.passwordHash : (hasPinHash ? firebaseUser.pinHash : null);
+                    
+                    if (!hashToUse) {
+                        // Si NO tiene ningún hash válido en Firebase, NO sincronizar
+                        console.log(`[Sync] ${firebaseUser.email} - Sin passwordHash ni pinHash en Firebase, OMITIENDO`);
+                        continue; // Saltar a la siguiente iteración
+                    }
+                    
+                    // Firebase tiene SHA-256, usar directamente (NO hashear de nuevo)
+                    const hashType = hasPasswordHash ? 'passwordHash' : 'pinHash';
+                    console.log(`[Sync] ${firebaseUser.email} - Usando ${hashType} de Firebase directamente (sin modificar)`);
+                    
+                    const { getConnection } = require('../config/database');
+                    const pool = await getConnection();
+                    
+                    const [result] = await pool.execute(`
+                        INSERT INTO users (name, email, password, role, parent_id, firebase_uid) 
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    `, [
+                        firebaseUser.name,
+                        firebaseUser.email,
+                        hashToUse, // Usar el hash SHA-256 tal cual viene de Firebase
+                        'estudiante',
+                        firebaseUser.parent_id || null,
+                        firebaseUser.firebase_uid
+                    ]);
+                    
+                    const [rows] = await pool.execute('SELECT * FROM users WHERE id = ?', [result.insertId]);
+                    createdUser = new User(rows[0]);
+
+                    const createdJson = createdUser.toJSON();
+                    normalizedMysqlUsers.push({
+                        ...createdJson,
+                        source: 'mysql',
+                        displayId: createdJson.id,
+                        origin: 'firebase'
+                    });
+
+                    existingEmails.add(firebaseUser.email.toLowerCase());
+                } catch (error) {
+                    if (error.code === 'ER_DUP_ENTRY') {
+                        continue;
+                    }
+                    console.warn('No fue posible sincronizar un usuario de Firebase:', error.message);
+                }
+            }
+        } catch (error) {
+            console.warn('No fue posible obtener usuarios desde Firebase:', error.message);
+        }
+
+        const combinedUsers = normalizedMysqlUsers;
+
         res.json({
             success: true,
             data: {
-                users: users.map(user => user.toJSON()),
-                total: users.length,
+                users: combinedUsers,
+                total: combinedUsers.length,
                 roles: {
-                    admin: users.filter(u => u.role === 'admin').length,
-                    profesor: users.filter(u => u.role === 'profesor').length,
-                    estudiante: users.filter(u => u.role === 'estudiante').length,
-                    padre: users.filter(u => u.role === 'padre').length
+                    admin: combinedUsers.filter(u => u.role === 'admin').length,
+                    profesor: combinedUsers.filter(u => u.role === 'profesor').length,
+                    estudiante: combinedUsers.filter(u => u.role === 'estudiante').length,
+                    padre: combinedUsers.filter(u => u.role === 'padre').length
                 }
             }
         });

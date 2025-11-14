@@ -243,20 +243,34 @@ router.post('/login', [
         // Buscar usuario por email
         const user = await User.findByEmail(email);
         if (!user) {
+            console.log(`❌ [LOGIN] Usuario no encontrado: ${email}`);
             return res.status(401).json({
                 success: false,
                 message: 'Credenciales inválidas'
             });
         }
 
+        console.log(`✓ [LOGIN] Usuario encontrado: ${email}`);
+        console.log(`  - ID: ${user.id}`);
+        console.log(`  - Nombre: ${user.name}`);
+        console.log(`  - Role: ${user.role}`);
+        console.log(`  - Password en BD (primeros 20 chars): ${user.password.substring(0, 20)}`);
+        console.log(`  - Password ingresada: ${password.substring(0, 3)}***`);
+
         // Verificar contraseña
         const isPasswordValid = await user.comparePassword(password);
+        
+        console.log(`  - ¿Password válida?: ${isPasswordValid ? '✓ SÍ' : '❌ NO'}`);
+        
         if (!isPasswordValid) {
+            console.log(`❌ [LOGIN] Contraseña incorrecta para ${email}`);
             return res.status(401).json({
                 success: false,
                 message: 'Credenciales inválidas'
             });
         }
+
+        console.log(`✓ [LOGIN] Login exitoso para ${email}`);
 
         // Generar tokens JWT
         const tokens = generateTokens({
@@ -364,6 +378,109 @@ router.post('/logout', (req, res) => {
         success: true,
         message: 'Logout exitoso'
     });
+});
+
+// Cambiar contraseña (para usuarios autenticados)
+/**
+ * @swagger
+ * /api/auth/change-password:
+ *   post:
+ *     summary: Cambiar contraseña del usuario autenticado
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 description: Contraseña actual del usuario
+ *                 example: "oldPassword123"
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 6
+ *                 description: Nueva contraseña
+ *                 example: "newPassword123"
+ *     responses:
+ *       200:
+ *         description: Contraseña cambiada exitosamente
+ *       400:
+ *         description: Datos de entrada inválidos
+ *       401:
+ *         description: Contraseña actual incorrecta
+ *       500:
+ *         description: Error interno del servidor
+ */
+router.post('/change-password', authenticateToken, [
+    body('currentPassword')
+        .notEmpty()
+        .withMessage('La contraseña actual es requerida'),
+    body('newPassword')
+        .isLength({ min: 6 })
+        .withMessage('La nueva contraseña debe tener al menos 6 caracteres')
+], async (req, res) => {
+    try {
+        // Validar datos de entrada
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Datos de entrada inválidos',
+                errors: errors.array()
+            });
+        }
+
+        const { currentPassword, newPassword } = req.body;
+
+        // Buscar usuario
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuario no encontrado'
+            });
+        }
+
+        // Verificar contraseña actual
+        const isPasswordValid = await user.comparePassword(currentPassword);
+        if (!isPasswordValid) {
+            return res.status(401).json({
+                success: false,
+                message: 'La contraseña actual es incorrecta'
+            });
+        }
+
+        // Actualizar contraseña con SHA-256
+        const crypto = require('crypto');
+        const hashedPassword = crypto.createHash('sha256').update(newPassword).digest('hex');
+        
+        const { getConnection } = require('../config/database');
+        const pool = await getConnection();
+        
+        await pool.execute(
+            'UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [hashedPassword, user.id]
+        );
+
+        res.json({
+            success: true,
+            message: 'Contraseña actualizada exitosamente'
+        });
+
+    } catch (error) {
+        console.error('Error al cambiar contraseña:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor'
+        });
+    }
 });
 
 module.exports = router;

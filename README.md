@@ -69,23 +69,45 @@ WEB/
 ### Backend
 
 - **Modelo de Usuario**:
-  - Campos: id, name, email, password, created_at, updated_at
+  - Campos: id, name, email, password, firebase_uid, role, parent_id, created_at, updated_at
   - Hash seguro de contraseñas con bcryptjs
   - Validaciones de datos
+  - Soporte para usuarios de Firebase
 
 - **Autenticación**:
   - Registro de usuarios
   - Login con JWT
   - Verificación de tokens
   - Middleware de autenticación
+  - Cambio de contraseña
+  - **Sincronización con Firebase**: Los usuarios de Firebase pueden usar sus credenciales para login
+
+- **Sistema de Roles**:
+  - Administrador (admin)
+  - Profesor (profesor)
+  - Estudiante (estudiante)
+  - Padre (padre)
 
 - **Rutas API**:
   - `POST /api/auth/register` - Registro
   - `POST /api/auth/login` - Login
   - `GET /api/auth/verify` - Verificar token
+  - `POST /api/auth/change-password` - Cambiar contraseña
   - `GET /api/users/profile` - Obtener perfil
   - `PUT /api/users/profile` - Actualizar perfil
   - `DELETE /api/users/profile` - Eliminar cuenta
+  - `GET /api/roles/all` - Obtener todos los usuarios (admin, sincroniza con Firebase)
+
+### Sincronización con Firebase
+
+El sistema sincroniza automáticamente usuarios desde Firebase Realtime Database a MySQL:
+
+1. **Contraseñas desde Firebase**: Si el usuario en Firebase tiene un campo `password`, se usa para el login
+2. **Contraseña predeterminada**: Si no hay contraseña en Firebase, se genera automáticamente:
+   - Formato: `[primeros 6 caracteres del email]123`
+   - Ejemplo: `usuario@ejemplo.com` → contraseña: `usuari123`
+
+**Para más información**: Ver `docs/SINCRONIZACION_PASSWORDS_FIREBASE.md`
 
 ### Frontend
 

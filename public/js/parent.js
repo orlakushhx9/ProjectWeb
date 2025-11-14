@@ -6,6 +6,9 @@ class ParentPanel {
         this.children = [];
         this.practices = [];
         this.charts = {};
+        this.firebase = {
+            service: window.firebaseDataService || null
+        };
         
         if (!this.token) {
             window.location.href = '/login';
@@ -21,9 +24,35 @@ class ParentPanel {
             this.setupNavigation();
             this.setupEventListeners();
             await this.loadDashboardData();
+            
+            // 🔄 AUTO-REFRESH: Actualizar datos de los hijos cada 5 segundos
+            this.startAutoRefresh();
         } catch (error) {
             console.error('Error inicializando panel:', error);
             this.showMessage('Error cargando datos del usuario', 'error');
+        }
+    }
+    
+    startAutoRefresh() {
+        // Limpiar interval anterior si existe
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+        }
+        
+        // Actualizar cada 5 segundos
+        this.refreshInterval = setInterval(async () => {
+            // Actualización silenciosa (sin mostrar loading)
+            await this.loadDashboardData(true); // true = silent
+        }, 5000);
+        
+        console.log('✅ Auto-refresh activado (silencioso): actualizando cada 5 segundos');
+    }
+    
+    stopAutoRefresh() {
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+            this.refreshInterval = null;
+            console.log('⏸️ Auto-refresh detenido');
         }
     }
 
@@ -90,15 +119,6 @@ class ParentPanel {
         document.getElementById('childFilter').addEventListener('change', (e) => {
             this.filterChildren();
         });
-
-        // Filtros de progreso
-        document.getElementById('progressChild').addEventListener('change', (e) => {
-            this.updateProgressCharts();
-        });
-
-        document.getElementById('progressPeriod').addEventListener('change', (e) => {
-            this.updateProgressCharts();
-        });
     }
 
     async loadSectionData(section) {
@@ -109,22 +129,20 @@ class ParentPanel {
             case 'children':
                 await this.loadChildren();
                 break;
-            case 'progress':
-                await this.loadProgress();
-                break;
             case 'profile':
                 await this.loadProfile();
                 break;
         }
     }
 
-    async loadDashboardData() {
+    async loadDashboardData(silent = false) {
         try {
-            this.showLoading(true);
+            // Solo mostrar loading si NO es actualización silenciosa
+            if (!silent) {
+                this.showLoading(true);
+            }
             
-            // Simular carga de datos
             await this.loadChildren();
-            await this.loadPractices();
             
             // Actualizar estadísticas del dashboard
             this.updateDashboardStats();
@@ -132,15 +150,18 @@ class ParentPanel {
             
         } catch (error) {
             console.error('Error cargando dashboard:', error);
-            this.showMessage('Error cargando datos del dashboard', 'error');
+            if (!silent) {
+                this.showMessage('Error cargando datos del dashboard', 'error');
+            }
         } finally {
-            this.showLoading(false);
+            if (!silent) {
+                this.showLoading(false);
+            }
         }
     }
 
     async loadChildren() {
         try {
-            // Obtener hijos reales de la API
             const response = await fetch('/api/parent/my-children', {
                 headers: {
                     'Authorization': `Bearer ${this.token}`
@@ -152,33 +173,51 @@ class ParentPanel {
             }
 
             const data = await response.json();
-            
-            // Mapear datos reales de los hijos
-            this.children = data.data.children.map(child => ({
-                id: child.id,
-                name: child.name,
-                email: child.email,
-                practices: 0, // Por ahora no hay datos de prácticas
-                average: 0, // Por ahora no hay datos de promedio
-                lastPractice: child.created_at || new Date().toISOString(),
-                progress: 'good', // Valor por defecto
-                improvement: '0%' // Valor por defecto
+            const normalizeAttempts = (attempts = []) => attempts.map((attempt, index) => ({
+                id: attempt.id || index,
+                date: attempt.timestamp ? new Date(attempt.timestamp).toISOString() : (attempt.date || new Date().toISOString()),
+                sign: attempt.sign || 'Gesto',
+                score: typeof attempt.percentage === 'number' ? attempt.percentage : 0,
+                status: this.getPerformanceStatus(typeof attempt.percentage === 'number' ? attempt.percentage : 0)
             }));
-            
+
+            this.children = data.data.children.map(({ child, stats, attempts }) => {
+                const normalizedAttempts = normalizeAttempts(attempts);
+                return {
+                    id: child.id,
+                    firebase_uid: child.firebase_uid,
+                    name: child.name,
+                    email: child.email,
+                    practices: stats.totalAttempts || 0,
+                    average: stats.averageScore || 0,
+                    lastPractice: stats.lastPractice,
+                    progress: this.getPerformanceStatus(stats.averageScore || 0),
+                    improvement: `${stats.bestScore || 0}%`,
+                    attempts: normalizedAttempts,
+                    raw: child
+                };
+            });
+
+            this.practices = this.children.flatMap(child => child.attempts || []);
+
             this.renderChildrenTable();
             this.populateSelectors();
-            
+            this.updateDashboardStats();
+            this.renderChildrenOverview();
         } catch (error) {
             console.error('Error cargando hijos:', error);
             this.showMessage('Error cargando datos de hijos', 'error');
-            // Si hay error, mostrar lista vacía
             this.children = [];
+            this.practices = [];
             this.renderChildrenTable();
         }
     }
 
     async loadPractices() {
         try {
+            if (this.practices?.length) {
+                return;
+            }
             this.practices = [];
             
         } catch (error) {
@@ -266,7 +305,7 @@ class ParentPanel {
                         ${child.average}%
                     </span>
                 </td>
-                <td>${new Date(child.lastPractice).toLocaleDateString('es-ES')}</td>
+                <td>${child.lastPractice ? new Date(child.lastPractice).toLocaleDateString('es-ES') : 'N/A'}</td>
                 <td>
                     <span class="progress-indicator progress-${child.progress}">
                         ${child.improvement}
@@ -275,9 +314,6 @@ class ParentPanel {
                 <td>
                     <button onclick="parentPanel.viewChildDetails(${child.id})" class="btn btn-sm btn-primary">
                         <i class="fas fa-eye"></i> Ver
-                    </button>
-                    <button onclick="parentPanel.viewChildProgress(${child.id})" class="btn btn-sm btn-secondary">
-                        <i class="fas fa-chart-line"></i> Progreso
                     </button>
                 </td>
             </tr>
@@ -317,19 +353,23 @@ class ParentPanel {
                         <div class="value">${child.improvement}</div>
                         <div class="label">Mejora</div>
                     </div>
+                    <div class="child-stat">
+                        <div class="value">${child.lastPractice ? new Date(child.lastPractice).toLocaleDateString('es-ES') : 'N/A'}</div>
+                        <div class="label">Última práctica</div>
+                    </div>
                 </div>
             </div>
         `).join('');
     }
 
     populateSelectors() {
-        // Poblar selectores de progreso
         const progressChildSelect = document.getElementById('progressChild');
-        
-        // Limpiar opciones existentes
+        if (!progressChildSelect) {
+            return;
+        }
+
         progressChildSelect.innerHTML = '<option value="">Todos los hijos</option>';
-        
-        // Agregar hijos
+
         this.children.forEach(child => {
             const option = document.createElement('option');
             option.value = child.id;
@@ -390,8 +430,41 @@ class ParentPanel {
             this.charts.temporalProgress.destroy();
         }
         
-        const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
-        const averageScores = this.practices.length > 0 ? [0, 0, 0, 0, 0, 0] : [0, 0, 0, 0, 0, 0];
+        const monthlyScores = this.practices.reduce((acc, practice) => {
+            if (!practice?.date) return acc;
+            const date = new Date(practice.date);
+            if (Number.isNaN(date.getTime())) return acc;
+            const key = `${date.getFullYear()}-${date.getMonth()}`;
+            if (!acc[key]) {
+                acc[key] = [];
+            }
+            acc[key].push(practice.score || 0);
+            return acc;
+        }, {});
+
+        const sortedKeys = Object.keys(monthlyScores).sort((a, b) => {
+            const [yearA, monthA] = a.split('-').map(Number);
+            const [yearB, monthB] = b.split('-').map(Number);
+            if (yearA === yearB) return monthA - monthB;
+            return yearA - yearB;
+        }).slice(-6);
+
+        const formatter = new Intl.DateTimeFormat('es-ES', { month: 'short' });
+        const labels = sortedKeys.length
+            ? sortedKeys.map(key => {
+                const [year, month] = key.split('-').map(Number);
+                return formatter.format(new Date(year, month));
+            })
+            : ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
+
+        const averageScores = sortedKeys.length
+            ? sortedKeys.map(key => {
+                const scores = monthlyScores[key];
+                return scores.length
+                    ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
+                    : 0;
+            })
+            : [0, 0, 0, 0, 0, 0];
         
         this.charts.temporalProgress = new Chart(ctx, {
             type: 'line',
@@ -430,9 +503,47 @@ class ParentPanel {
     }
 
     updateProgressSummary() {
-        document.getElementById('averageImprovement').textContent = '0%';
-        document.getElementById('mostActiveDays').textContent = '0';
-        document.getElementById('mostPracticedSign').textContent = 'N/A';
+        const improvementEl = document.getElementById('averageImprovement');
+        const activeDaysEl = document.getElementById('mostActiveDays');
+        const practicedSignEl = document.getElementById('mostPracticedSign');
+
+        if (!improvementEl || !activeDaysEl || !practicedSignEl) {
+            return;
+        }
+
+        const improvements = this.children
+            .map(child => {
+                const value = parseInt(String(child.improvement || '0').replace('%', ''), 10);
+                return Number.isNaN(value) ? 0 : value;
+            })
+            .filter(value => typeof value === 'number');
+
+        const averageImprovement = improvements.length
+            ? Math.round(improvements.reduce((sum, value) => sum + value, 0) / improvements.length)
+            : 0;
+
+        const dayFrequency = this.practices.reduce((acc, practice) => {
+            if (!practice?.date) return acc;
+            const dayKey = new Date(practice.date).toLocaleDateString('es-ES');
+            acc[dayKey] = (acc[dayKey] || 0) + 1;
+            return acc;
+        }, {});
+        const mostActiveCount = Object.values(dayFrequency).length
+            ? Math.max(...Object.values(dayFrequency))
+            : 0;
+
+        const signFrequency = this.practices.reduce((acc, practice) => {
+            const key = practice?.sign || 'N/A';
+            acc[key] = (acc[key] || 0) + 1;
+            return acc;
+        }, {});
+        const mostPracticed = Object.entries(signFrequency).length
+            ? Object.entries(signFrequency).sort((a, b) => b[1] - a[1])[0][0]
+            : 'N/A';
+
+        improvementEl.textContent = `${averageImprovement}%`;
+        activeDaysEl.textContent = String(mostActiveCount);
+        practicedSignEl.textContent = mostPracticed;
     }
 
     updateProfileStats() {
@@ -520,9 +631,6 @@ class ParentPanel {
                     <button onclick="parentPanel.viewChildDetails(${child.id})" class="btn btn-sm btn-primary">
                         <i class="fas fa-eye"></i> Ver
                     </button>
-                    <button onclick="parentPanel.viewChildProgress(${child.id})" class="btn btn-sm btn-secondary">
-                        <i class="fas fa-chart-line"></i> Progreso
-                    </button>
                 </td>
             </tr>
         `).join('');
@@ -564,7 +672,7 @@ class ParentPanel {
             </div>
             <div class="child-detail-item">
                 <span class="label">Última práctica:</span>
-                <span class="value">${new Date(child.lastPractice).toLocaleDateString('es-ES')}</span>
+                <span class="value">${child.lastPractice ? new Date(child.lastPractice).toLocaleDateString('es-ES') : 'N/A'}</span>
             </div>
             <div class="child-detail-item">
                 <span class="label">Mejora:</span>
@@ -585,6 +693,15 @@ class ParentPanel {
         if (!child) return;
         
         this.showMessage(`Viendo progreso de: ${child.name}`, 'success');
+    }
+
+    cleanup() {
+        Object.values(this.charts).forEach(chart => {
+            if (chart && typeof chart.destroy === 'function') {
+                chart.destroy();
+            }
+        });
+        this.charts = {};
     }
 
     showLoading(show) {
@@ -612,6 +729,9 @@ class ParentPanel {
 
 // Función global para logout
 function logout() {
+    if (window.parentPanel?.cleanup) {
+        window.parentPanel.cleanup();
+    }
     localStorage.removeItem('token');
     window.location.href = '/login';
 }
@@ -619,13 +739,17 @@ function logout() {
 // Cerrar modal al hacer clic fuera de él
 document.addEventListener('click', (e) => {
     const modal = document.getElementById('childDetailsModal');
-    if (e.target === modal) {
-        parentPanel.closeChildDetailsModal();
+    if (e.target === modal && window.parentPanel) {
+        window.parentPanel.closeChildDetailsModal();
     }
 });
 
 // Inicializar el panel cuando se carga la página
-let parentPanel;
 document.addEventListener('DOMContentLoaded', () => {
-    parentPanel = new ParentPanel();
+    window.parentPanel = new ParentPanel();
+});
+window.addEventListener('beforeunload', () => {
+    if (window.parentPanel?.cleanup) {
+        window.parentPanel.cleanup();
+    }
 });

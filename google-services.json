@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "190698040565",
+    "firebase_url": "https://gestusproject-default-rtdb.firebaseio.com",
+    "project_id": "gestusproject",
+    "storage_bucket": "gestusproject.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:190698040565:android:94f15817b3435ea136e9bc",
+        "android_client_info": {
+          "package_name": "com.example.gestusproject"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCjAHE9g_lUoOP4jx3ROiDK4tO6-OzQ5P4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

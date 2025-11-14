@@ -670,8 +670,71 @@ body {
     }
 }
 
+/* Modal de Ver Evaluación */
+.evaluation-details {
+    padding: 0.5rem 0;
+}
+
+.detail-row {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid #eee;
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-row label {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.detail-row span,
+.detail-row p {
+    color: #555;
+}
+
+.comments-text {
+    margin: 0;
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+    white-space: pre-wrap;
+    min-height: 50px;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.status-badge.completed {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-badge.pending {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
+    .detail-row {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .detail-row label {
+        margin-bottom: 0.25rem;
+    }
+    
     .professor-header {
         padding: 1rem;
     }

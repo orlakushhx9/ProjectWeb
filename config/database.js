@@ -49,6 +49,9 @@ async function initializeDatabase() {
         
         // Crear tabla de usuarios con roles
         await createUsersTable(pool);
+
+        // Crear tabla de evaluaciones
+        await createEvaluationsTable(pool);
         
         // Crear usuario administrador por defecto
         await createDefaultAdmin(pool);
@@ -69,6 +72,7 @@ async function createUsersTable(pool) {
                 name VARCHAR(100) NOT NULL,
                 email VARCHAR(100) UNIQUE NOT NULL,
                 password VARCHAR(255) NOT NULL,
+                firebase_uid VARCHAR(128) UNIQUE NULL,
                 role ENUM('admin', 'profesor', 'estudiante', 'padre') DEFAULT 'estudiante',
                 parent_id INT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -89,7 +93,7 @@ async function createUsersTable(pool) {
             FROM INFORMATION_SCHEMA.COLUMNS 
             WHERE TABLE_SCHEMA = DATABASE() 
             AND TABLE_NAME = 'users' 
-            AND COLUMN_NAME IN ('role', 'parent_id')
+            AND COLUMN_NAME IN ('role', 'parent_id', 'firebase_uid')
         `);
         
         const existingColumns = columns.map(col => col.COLUMN_NAME);
@@ -105,9 +109,46 @@ async function createUsersTable(pool) {
             await pool.execute('ALTER TABLE users ADD FOREIGN KEY (parent_id) REFERENCES users(id) ON DELETE SET NULL');
             console.log('Columna parent_id agregada a la tabla users');
         }
+
+        if (!existingColumns.includes('firebase_uid')) {
+            await pool.execute('ALTER TABLE users ADD COLUMN firebase_uid VARCHAR(128) NULL UNIQUE');
+            console.log('Columna firebase_uid agregada a la tabla users');
+        }
         
     } catch (error) {
         console.error('Error al crear tabla users:', error);
+        throw error;
+    }
+}
+
+async function createEvaluationsTable(pool) {
+    try {
+        const createTableQuery = `
+            CREATE TABLE IF NOT EXISTS evaluations (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                student_id INT NOT NULL,
+                professor_id INT NOT NULL,
+                gesture_id VARCHAR(128) NULL,
+                gesture_name VARCHAR(150) NOT NULL,
+                attempt_id VARCHAR(150) NULL,
+                attempt_timestamp DATETIME NULL,
+                score DECIMAL(5,2) NOT NULL,
+                comments TEXT NULL,
+                status ENUM('pending', 'completed') DEFAULT 'completed',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_student (student_id),
+                INDEX idx_professor (professor_id),
+                INDEX idx_gesture (gesture_id),
+                CONSTRAINT fk_eval_student FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+                CONSTRAINT fk_eval_professor FOREIGN KEY (professor_id) REFERENCES users(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `;
+
+        await pool.execute(createTableQuery);
+        console.log('Tabla evaluations creada o verificada exitosamente');
+    } catch (error) {
+        console.error('Error al crear tabla evaluations:', error);
         throw error;
     }
 }

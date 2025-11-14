@@ -1,6 +1,7 @@
 const express = require('express');
 const User = require('../models/User');
 const { authenticateToken, requireParent } = require('../middleware/auth');
+const { getGestureAttemptsForUser } = require('../services/firebaseAdmin');
 
 const router = express.Router();
 
@@ -17,11 +18,39 @@ const router = express.Router();
 router.get('/my-children', authenticateToken, requireParent, async (req, res) => {
     try {
         const children = await User.getStudentsByParent(req.userData.id);
-        
+        const detailedChildren = [];
+
+        for (const child of children) {
+            const childJson = child.toJSON();
+
+            let gestureData = {
+                summary: {
+                    totalAttempts: 0,
+                    averageScore: 0,
+                    lastPractice: null,
+                    bestScore: 0,
+                    progressPercent: 0
+                },
+                attempts: []
+            };
+
+            try {
+                gestureData = await getGestureAttemptsForUser(childJson.firebase_uid);
+            } catch (error) {
+                console.warn(`No se pudo obtener gestos para el estudiante ${childJson.id}:`, error.message);
+            }
+
+            detailedChildren.push({
+                child: childJson,
+                stats: gestureData.summary,
+                attempts: gestureData.attempts
+            });
+        }
+
         res.json({
             success: true,
             data: {
-                children: children.map(child => child.toJSON())
+                children: detailedChildren
             }
         });
     } catch (error) {
@@ -48,21 +77,30 @@ router.get('/children/:childId/progress', authenticateToken, requireParent, asyn
                 message: 'No tienes permisos para ver los datos de este estudiante'
             });
         }
+
+        let gestureData = {
+            summary: {
+                totalAttempts: 0,
+                averageScore: 0,
+                lastPractice: null,
+                bestScore: 0,
+                progressPercent: 0
+            },
+            attempts: []
+        };
+
+        try {
+            gestureData = await getGestureAttemptsForUser(child.firebase_uid);
+        } catch (error) {
+            console.warn(`No se pudo obtener gestos para el estudiante ${child.id}:`, error.message);
+        }
         
         res.json({
             success: true,
             data: {
                 child: child.toJSON(),
-                progress: {
-                    totalDetections: 0,
-                    avgConfidence: 0,
-                    totalSessions: 0,
-                    signsPracticed: 0,
-                    overallProgress: 0,
-                    signStats: [],
-                    sessions: [],
-                    teacherEvaluations: []
-                }
+                progress: gestureData.summary,
+                attempts: gestureData.attempts
             }
         });
     } catch (error) {
@@ -78,18 +116,33 @@ router.get('/children/:childId/progress', authenticateToken, requireParent, asyn
 router.get('/children/summary', authenticateToken, requireParent, async (req, res) => {
     try {
         const children = await User.getStudentsByParent(req.userData.id);
-        
-        const childrenSummary = children.map(child => ({
-            child: child.toJSON(),
-            summary: {
-                totalDetections: 0,
-                avgConfidence: 0,
-                totalSessions: 0,
-                signsPracticed: 0,
-                overallProgress: 0,
-                lastActivity: null
+        const childrenSummary = [];
+
+        for (const child of children) {
+            const childJson = child.toJSON();
+
+            let gestureData = {
+                summary: {
+                    totalAttempts: 0,
+                    averageScore: 0,
+                    lastPractice: null,
+                    bestScore: 0,
+                    progressPercent: 0
+                },
+                attempts: []
+            };
+
+            try {
+                gestureData = await getGestureAttemptsForUser(childJson.firebase_uid);
+            } catch (error) {
+                console.warn(`No se pudo obtener gestos para el estudiante ${childJson.id}:`, error.message);
             }
-        }));
+
+            childrenSummary.push({
+                child: childJson,
+                summary: gestureData.summary
+            });
+        }
         
         res.json({
             success: true,

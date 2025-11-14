@@ -18,9 +18,35 @@ class AdminPanel {
             await this.loadDashboardData();
             this.setupEventListeners();
             this.setupNavigation();
+            
+            // 🔄 AUTO-REFRESH: Actualizar datos cada 5 segundos
+            this.startAutoRefresh();
         } catch (error) {
             console.error('Error inicializando panel:', error);
             this.showMessage('Error al cargar el panel de administración', 'error');
+        }
+    }
+    
+    startAutoRefresh() {
+        // Limpiar interval anterior si existe
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+        }
+        
+        // Actualizar cada 5 segundos (5000ms)
+        this.refreshInterval = setInterval(async () => {
+            // Actualización silenciosa (sin mostrar loading)
+            await this.loadDashboardData(true); // true = silent
+        }, 5000);
+        
+        console.log('✅ Auto-refresh activado (silencioso): actualizando cada 5 segundos');
+    }
+    
+    stopAutoRefresh() {
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+            this.refreshInterval = null;
+            console.log('⏸️ Auto-refresh detenido');
         }
     }
 
@@ -55,9 +81,12 @@ class AdminPanel {
         }
     }
 
-    async loadDashboardData() {
+    async loadDashboardData(silent = false) {
         try {
-            this.showLoading(true);
+            // Solo mostrar loading si NO es actualización silenciosa
+            if (!silent) {
+                this.showLoading(true);
+            }
             
             // Cargar usuarios
             await this.loadUsers();
@@ -67,9 +96,13 @@ class AdminPanel {
             
         } catch (error) {
             console.error('Error cargando datos del dashboard:', error);
-            this.showMessage('Error al cargar los datos', 'error');
+            if (!silent) {
+                this.showMessage('Error al cargar los datos', 'error');
+            }
         } finally {
-            this.showLoading(false);
+            if (!silent) {
+                this.showLoading(false);
+            }
         }
     }
 
@@ -127,14 +160,11 @@ class AdminPanel {
                 this.users.find(u => u.id === user.parent_id)?.name || 'N/A' : 
                 'Sin asignar';
 
-            row.innerHTML = `
-                <td>${user.id}</td>
-                <td>${user.name}</td>
-                <td>${user.email}</td>
-                <td><span class="role-badge ${user.role}">${user.role}</span></td>
-                <td>${parentName}</td>
-                <td>${new Date(user.created_at).toLocaleDateString()}</td>
-                <td>
+            const createdAt = user.created_at ? new Date(user.created_at) : new Date();
+            const displayId = user.displayId || user.id;
+            const actions = user.source === 'firebase'
+                ? `<span class="readonly-note">Solo lectura</span>`
+                : `
                     <div class="action-buttons">
                         <button class="btn btn-secondary" onclick="adminPanel.editUser(${user.id})">
                             <i class="fas fa-edit"></i> Editar
@@ -145,7 +175,16 @@ class AdminPanel {
                             </button>
                         ` : ''}
                     </div>
-                </td>
+                `;
+
+            row.innerHTML = `
+                <td>${displayId}</td>
+                <td>${user.name}</td>
+                <td>${user.email}</td>
+                <td><span class="role-badge ${user.role}">${user.role}</span></td>
+                <td>${parentName}</td>
+                <td>${createdAt.toLocaleDateString()}</td>
+                <td>${actions}</td>
             `;
             
             tbody.appendChild(row);
@@ -160,8 +199,10 @@ class AdminPanel {
         userSelect.innerHTML = '<option value="">Seleccionar usuario...</option>';
         parentSelect.innerHTML = '<option value="">Sin padre asignado</option>';
         
-        // Agregar usuarios
-        this.users.forEach(user => {
+        // Agregar usuarios (solo los gestionados por el backend)
+        this.users
+            .filter(user => user.source !== 'firebase')
+            .forEach(user => {
             const option = document.createElement('option');
             option.value = user.id;
             option.textContent = `${user.name} (${user.email}) - ${user.role}`;
@@ -169,7 +210,7 @@ class AdminPanel {
         });
         
         // Agregar padres
-        const parents = this.users.filter(u => u.role === 'padre');
+        const parents = this.users.filter(u => u.role === 'padre' && u.source !== 'firebase');
         parents.forEach(parent => {
             const option = document.createElement('option');
             option.value = parent.id;
@@ -354,10 +395,12 @@ class AdminPanel {
     }
 
     filterUsers(searchTerm) {
-        const filteredUsers = this.users.filter(user => 
-            user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user.email.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+        const normalizedTerm = searchTerm.toLowerCase();
+        const filteredUsers = this.users.filter(user => {
+            const name = (user.name || '').toLowerCase();
+            const email = (user.email || '').toLowerCase();
+            return name.includes(normalizedTerm) || email.includes(normalizedTerm);
+        });
         
         this.renderFilteredUsers(filteredUsers);
     }
@@ -383,14 +426,11 @@ class AdminPanel {
                 this.users.find(u => u.id === user.parent_id)?.name || 'N/A' : 
                 'Sin asignar';
 
-            row.innerHTML = `
-                <td>${user.id}</td>
-                <td>${user.name}</td>
-                <td>${user.email}</td>
-                <td><span class="role-badge ${user.role}">${user.role}</span></td>
-                <td>${parentName}</td>
-                <td>${new Date(user.created_at).toLocaleDateString()}</td>
-                <td>
+            const createdAt = user.created_at ? new Date(user.created_at) : new Date();
+            const displayId = user.displayId || user.id;
+            const actions = user.source === 'firebase'
+                ? `<span class="readonly-note">Solo lectura</span>`
+                : `
                     <div class="action-buttons">
                         <button class="btn btn-secondary" onclick="adminPanel.editUser(${user.id})">
                             <i class="fas fa-edit"></i> Editar
@@ -401,7 +441,16 @@ class AdminPanel {
                             </button>
                         ` : ''}
                     </div>
-                </td>
+                `;
+
+            row.innerHTML = `
+                <td>${displayId}</td>
+                <td>${user.name}</td>
+                <td>${user.email}</td>
+                <td><span class="role-badge ${user.role}">${user.role}</span></td>
+                <td>${parentName}</td>
+                <td>${createdAt.toLocaleDateString()}</td>
+                <td>${actions}</td>
             `;
             
             tbody.appendChild(row);
@@ -477,8 +526,13 @@ class AdminPanel {
     }
 
     async editUser(userId) {
-        const user = this.users.find(u => u.id === userId);
+        const user = this.users.find(u => u.id == userId);
         if (!user) return;
+
+        if (user.source === 'firebase') {
+            this.showMessage('Los usuarios de Firebase son solo lectura desde este panel.', 'error');
+            return;
+        }
 
         // Llenar el modal con los datos del usuario
         document.getElementById('editUserId').value = user.id;
@@ -492,7 +546,7 @@ class AdminPanel {
         parentSelect.innerHTML = '<option value="">Sin padre asignado</option>';
         
         // Agregar padres disponibles
-        const parents = this.users.filter(u => u.role === 'padre');
+        const parents = this.users.filter(u => u.role === 'padre' && u.source !== 'firebase');
         parents.forEach(parent => {
             const option = document.createElement('option');
             option.value = parent.id;
@@ -587,8 +641,13 @@ class AdminPanel {
     }
 
     async deleteUser(userId) {
-        const user = this.users.find(u => u.id === userId);
+        const user = this.users.find(u => u.id == userId);
         if (!user) return;
+
+        if (user.source === 'firebase') {
+            this.showMessage('No puedes eliminar usuarios gestionados desde Firebase.', 'error');
+            return;
+        }
 
         if (!confirm(`¿Estás seguro de que quieres eliminar a ${user.name}?`)) {
             return;
@@ -711,7 +770,7 @@ class AdminPanel {
         parentSelect.innerHTML = '<option value="">Sin padre asignado</option>';
         
         // Agregar padres disponibles
-        const parents = this.users.filter(u => u.role === 'padre');
+        const parents = this.users.filter(u => u.role === 'padre' && u.source !== 'firebase');
         parents.forEach(parent => {
             const option = document.createElement('option');
             option.value = parent.id;

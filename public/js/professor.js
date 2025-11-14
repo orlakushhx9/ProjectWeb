@@ -5,8 +5,10 @@ class ProfessorPanel {
         this.userData = null;
         this.students = [];
         this.evaluations = [];
-        this.signs = [];
+        this.gestureAttempts = [];
+        this.signs = []; // mantenido por compatibilidad, se rellenará con gestureAttempts
         this.charts = {};
+        this.currentEvaluationAttempt = null;
         
         if (!this.token) {
             window.location.href = '/login';
@@ -22,9 +24,35 @@ class ProfessorPanel {
             this.setupNavigation();
             this.setupEventListeners();
             await this.loadDashboardData();
+            
+            // 🔄 AUTO-REFRESH: Actualizar datos cada 5 segundos
+            this.startAutoRefresh();
         } catch (error) {
             console.error('Error inicializando panel:', error);
             this.showMessage('Error cargando datos del usuario', 'error');
+        }
+    }
+    
+    startAutoRefresh() {
+        // Limpiar interval anterior si existe
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+        }
+        
+        // Actualizar cada 5 segundos
+        this.refreshInterval = setInterval(async () => {
+            // Actualización silenciosa (sin mostrar loading)
+            await this.loadDashboardData(true); // true = silent
+        }, 5000);
+        
+        console.log('✅ Auto-refresh activado (silencioso): actualizando cada 5 segundos');
+    }
+    
+    stopAutoRefresh() {
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+            this.refreshInterval = null;
+            console.log('⏸️ Auto-refresh detenido');
         }
     }
 
@@ -125,13 +153,17 @@ class ProfessorPanel {
         }
     }
 
-    async loadDashboardData() {
+    async loadDashboardData(silent = false) {
         try {
-            this.showLoading(true);
+            // Solo mostrar loading si NO es actualización silenciosa
+            if (!silent) {
+                this.showLoading(true);
+            }
             
-            // Simular carga de datos
-            await this.loadStudents();
+            // IMPORTANTE: Cargar evaluaciones PRIMERO para calcular promedios correctos
             await this.loadEvaluations();
+            await this.loadStudents(); // Ahora puede usar evaluaciones para calcular promedio
+            await this.loadSigns(true);
             
             // Actualizar estadísticas del dashboard
             this.updateDashboardStats();
@@ -139,15 +171,18 @@ class ProfessorPanel {
             
         } catch (error) {
             console.error('Error cargando dashboard:', error);
-            this.showMessage('Error cargando datos del dashboard', 'error');
+            if (!silent) {
+                this.showMessage('Error cargando datos del dashboard', 'error');
+            }
         } finally {
-            this.showLoading(false);
+            if (!silent) {
+                this.showLoading(false);
+            }
         }
     }
 
     async loadStudents() {
         try {
-            // Obtener estudiantes reales de la API
             const response = await fetch('/api/professor/students', {
                 headers: {
                     'Authorization': `Bearer ${this.token}`
@@ -159,48 +194,118 @@ class ProfessorPanel {
             }
 
             const data = await response.json();
-            
-            // Mapear datos reales de los estudiantes
-            this.students = data.data.students.map(student => ({
-                id: student.id,
-                name: student.name,
-                email: student.email,
-                practices: 0, // Por ahora no hay datos de prácticas
-                average: 0, // Por ahora no hay datos de promedio
-                lastActivity: student.created_at || new Date().toISOString(),
-                performance: 'good' // Valor por defecto
-            }));
-            
+            this.students = data.data.students.map(({ student, stats, attempts }) => {
+                const normalizedAttempts = (attempts || []).map((attempt, index) => ({
+                    id: attempt.id || index,
+                    date: attempt.timestamp ? new Date(attempt.timestamp).toISOString() : (attempt.date || new Date().toISOString()),
+                    sign: attempt.sign || 'Gesto',
+                    score: typeof attempt.percentage === 'number' ? attempt.percentage : 0,
+                    status: this.getPerformanceStatus(typeof attempt.percentage === 'number' ? attempt.percentage : 0)
+                }));
+
+                // Calcular promedio basado en evaluaciones del profesor (no en intentos)
+                const studentEvaluations = this.evaluations.filter(e => e.student_id === student.id);
+                const averageFromEvaluations = studentEvaluations.length > 0
+                    ? Math.round(studentEvaluations.reduce((sum, e) => sum + (e.score || 0), 0) / studentEvaluations.length)
+                    : 0;
+
+                return {
+                    id: student.id,
+                    firebase_uid: student.firebase_uid,
+                    name: student.name,
+                    email: student.email,
+                    practices: stats.totalAttempts || 0,
+                    average: averageFromEvaluations, // Promedio de evaluaciones del profesor
+                    lastActivity: stats.lastPractice || student.created_at || new Date().toISOString(),
+                    performance: this.getPerformanceStatus(averageFromEvaluations),
+                    attempts: normalizedAttempts,
+                    evaluationsCount: studentEvaluations.length,
+                    raw: student
+                };
+            });
+
             this.renderStudentsTable();
+            this.updateDashboardStats();
             
         } catch (error) {
             console.error('Error cargando estudiantes:', error);
             this.showMessage('Error cargando estudiantes', 'error');
-            // Si hay error, mostrar lista vacía
             this.students = [];
             this.renderStudentsTable();
         }
     }
 
+    async enrichStudentsWithFirebase() {
+        // Mantener método por compatibilidad pero ya no es necesario
+        return;
+    }
+
     async loadEvaluations() {
         try {
-            this.evaluations = [];
+            const response = await fetch('/api/professor/evaluations', {
+                headers: {
+                    'Authorization': `Bearer ${this.token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Error cargando evaluaciones');
+            }
+
+            const data = await response.json();
+            this.evaluations = (data.data.evaluations || []).map(evaluation => ({
+                id: evaluation.id,
+                studentId: evaluation.studentId,
+                studentName: evaluation.studentName,
+                studentEmail: evaluation.studentEmail,
+                professorId: evaluation.professorId,
+                professorName: evaluation.professorName,
+                gestureId: evaluation.gestureId,
+                gestureName: evaluation.gestureName,
+                attemptId: evaluation.attemptId,
+                attemptTimestamp: evaluation.attemptTimestamp,
+                score: evaluation.score,
+                comments: evaluation.comments,
+                status: evaluation.status,
+                created_at: evaluation.created_at
+            }));
+
             this.renderEvaluationsTable();
-            
+            this.renderRecentActivity();
+            this.updateDashboardStats();
         } catch (error) {
             console.error('Error cargando evaluaciones:', error);
             this.showMessage('Error cargando evaluaciones', 'error');
+            this.evaluations = [];
+            this.renderEvaluationsTable();
+            this.renderRecentActivity();
         }
     }
 
-    async loadSigns() {
+    async loadSigns(skipMessage = false) {
         try {
-            this.signs = [];
+            const response = await fetch('/api/professor/gesture-attempts', {
+                headers: {
+                    'Authorization': `Bearer ${this.token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Error cargando gestos detectados');
+            }
+
+            const data = await response.json();
+            this.gestureAttempts = data.data.attempts || [];
+            this.signs = this.gestureAttempts;
             this.renderSignsGrid();
-            
         } catch (error) {
             console.error('Error cargando gestos:', error);
-            this.showMessage('Error cargando gestos', 'error');
+            if (!skipMessage) {
+                this.showMessage('Error cargando gestos', 'error');
+            }
+            this.gestureAttempts = [];
+            this.signs = [];
+            this.renderSignsGrid();
         }
     }
 
@@ -208,15 +313,17 @@ class ProfessorPanel {
     updateDashboardStats() {
         const totalStudents = this.students.length;
         const totalEvaluations = this.evaluations.length;
-        const completedEvaluations = this.evaluations.filter(e => e.status === 'completed').length;
-        const averageScore = completedEvaluations > 0 
-            ? Math.round(this.evaluations.filter(e => e.status === 'completed').reduce((sum, e) => sum + e.score, 0) / completedEvaluations)
+        const averageDetectionScore = totalStudents > 0
+            ? Math.round(this.students.reduce((sum, student) => sum + (student.average || 0), 0) / totalStudents)
+            : 0;
+        const averageEvaluationScore = totalEvaluations > 0
+            ? Math.round(this.evaluations.reduce((sum, evaluation) => sum + (evaluation.score || 0), 0) / totalEvaluations)
             : 0;
         const pendingEvaluations = this.evaluations.filter(e => e.status === 'pending').length;
         
         document.getElementById('totalStudents').textContent = totalStudents;
         document.getElementById('totalEvaluations').textContent = totalEvaluations;
-        document.getElementById('averageScore').textContent = `${averageScore}%`;
+        document.getElementById('averageScore').textContent = `${averageEvaluationScore || averageDetectionScore}%`;
         document.getElementById('pendingEvaluations').textContent = pendingEvaluations;
     }
 
@@ -226,7 +333,7 @@ class ProfessorPanel {
         if (!this.students.length) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="no-data">
+                    <td colspan="5" class="no-data">
                         <i class="fas fa-users"></i>
                         <p>No hay estudiantes asignados</p>
                     </td>
@@ -249,15 +356,7 @@ class ProfessorPanel {
                         ${student.average}%
                     </span>
                 </td>
-                <td>${new Date(student.lastActivity).toLocaleDateString('es-ES')}</td>
-                <td>
-                    <button onclick="professorPanel.viewStudent(${student.id})" class="btn btn-sm btn-primary">
-                        <i class="fas fa-eye"></i> Ver
-                    </button>
-                    <button onclick="professorPanel.evaluateStudent(${student.id})" class="btn btn-sm btn-secondary">
-                        <i class="fas fa-clipboard-check"></i> Evaluar
-                    </button>
-                </td>
+                <td>${student.lastActivity ? new Date(student.lastActivity).toLocaleDateString('es-ES') : 'N/A'}</td>
             </tr>
         `).join('');
     }
@@ -280,15 +379,15 @@ class ProfessorPanel {
         tbody.innerHTML = this.evaluations.map(evaluation => `
             <tr>
                 <td>${evaluation.studentName}</td>
-                <td>${evaluation.sign}</td>
-                <td>${new Date(evaluation.date).toLocaleDateString('es-ES')}</td>
+                <td>${evaluation.gestureName}</td>
+                <td>${evaluation.created_at ? new Date(evaluation.created_at).toLocaleDateString('es-ES') : 'N/A'}</td>
                 <td>
                     <span class="status-badge status-${evaluation.status}">
                         ${this.getStatusText(evaluation.status)}
                     </span>
                 </td>
                 <td>
-                    ${evaluation.score ? `${evaluation.score}%` : 'Pendiente'}
+                    ${typeof evaluation.score === 'number' ? `${evaluation.score}%` : 'Pendiente'}
                 </td>
                 <td>
                     <button onclick="professorPanel.viewEvaluation(${evaluation.id})" class="btn btn-sm btn-primary">
@@ -304,37 +403,41 @@ class ProfessorPanel {
         `).join('');
     }
 
-    renderSignsGrid() {
+    renderSignsGrid(records = this.gestureAttempts) {
         const container = document.getElementById('signsGrid');
         
-        if (!this.signs.length) {
+        if (!records.length) {
             container.innerHTML = `
                 <div class="no-data">
                     <i class="fas fa-hands"></i>
-                    <p>No hay gestos registrados</p>
+                    <p>No hay gestos detectados recientemente</p>
                 </div>
             `;
             return;
         }
         
-        container.innerHTML = this.signs.map(sign => `
-            <div class="sign-card">
-                <h3>${sign.name}</h3>
-                <p>${sign.description}</p>
-                <div class="sign-meta">
-                    <span class="difficulty difficulty-${sign.difficulty.toLowerCase()}">${sign.difficulty}</span>
-                    <span class="category">${sign.category}</span>
+        container.innerHTML = records.map(record => {
+            const masterIndex = this.gestureAttempts.indexOf(record);
+            const { student, attempt } = record;
+            const detectedScore = typeof attempt.percentage === 'number' ? `${attempt.percentage}%` : 'N/A';
+            const detectedDate = attempt.timestamp ? new Date(attempt.timestamp).toLocaleString('es-ES') : 'N/A';
+            const signName = attempt.sign || 'Gesto';
+
+            return `
+                <div class="sign-card">
+                    <h3>${signName}</h3>
+                    <p><strong>Estudiante:</strong> ${student?.name || 'Desconocido'}</p>
+                    <p><strong>Puntaje detectado:</strong> ${detectedScore}</p>
+                    <p><strong>Fecha:</strong> ${detectedDate}</p>
+                    <p><strong>Intento:</strong> ${attempt.id || attempt.attemptId || 'N/A'}</p>
+                    <div class="sign-actions">
+                        <button onclick="professorPanel.startEvaluationFromAttempt(${masterIndex})" class="btn btn-sm btn-primary">
+                            <i class="fas fa-clipboard-check"></i> Evaluar
+                        </button>
+                    </div>
                 </div>
-                <div class="sign-actions">
-                    <button onclick="professorPanel.editSign(${sign.id})" class="btn btn-sm btn-primary">
-                        <i class="fas fa-edit"></i> Editar
-                    </button>
-                    <button onclick="professorPanel.deleteSign(${sign.id})" class="btn btn-sm btn-secondary">
-                        <i class="fas fa-trash"></i> Eliminar
-                    </button>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     renderRecentActivity() {
@@ -354,11 +457,11 @@ class ProfessorPanel {
         container.innerHTML = recentEvaluations.map(evaluation => `
             <div class="activity-item">
                 <div class="activity-info">
-                    <h4>Evaluación: ${evaluation.sign}</h4>
+                    <h4>Evaluación: ${evaluation.gestureName}</h4>
                     <p>Estudiante: ${evaluation.studentName}</p>
                 </div>
                 <div class="activity-time">
-                    ${new Date(evaluation.date).toLocaleDateString('es-ES')}
+                    ${evaluation.created_at ? new Date(evaluation.created_at).toLocaleDateString('es-ES') : 'N/A'}
                 </div>
             </div>
         `).join('');
@@ -409,7 +512,7 @@ class ProfessorPanel {
         if (searchTerm) {
             filteredEvaluations = filteredEvaluations.filter(evaluation => 
                 evaluation.studentName.toLowerCase().includes(searchTerm) ||
-                evaluation.sign.toLowerCase().includes(searchTerm)
+                (evaluation.gestureName || '').toLowerCase().includes(searchTerm)
             );
         }
         
@@ -422,7 +525,7 @@ class ProfessorPanel {
                     case 'completed':
                         return evaluation.status === 'completed';
                     case 'overdue':
-                        return evaluation.status === 'pending' && new Date(evaluation.date) < new Date();
+                        return evaluation.status === 'pending' && evaluation.created_at && new Date(evaluation.created_at) < new Date();
                     default:
                         return true;
                 }
@@ -436,19 +539,20 @@ class ProfessorPanel {
     filterSigns() {
         const searchTerm = document.getElementById('signSearch').value.toLowerCase();
         
-        let filteredSigns = this.signs;
+        let filteredAttempts = this.gestureAttempts;
         
-        // Filtrar por búsqueda
         if (searchTerm) {
-            filteredSigns = filteredSigns.filter(sign => 
-                sign.name.toLowerCase().includes(searchTerm) ||
-                sign.description.toLowerCase().includes(searchTerm) ||
-                sign.category.toLowerCase().includes(searchTerm)
-            );
+            filteredAttempts = filteredAttempts.filter(({ student, attempt }) => {
+                const signName = (attempt.sign || '').toLowerCase();
+                const studentName = (student?.name || '').toLowerCase();
+                const studentEmail = (student?.email || '').toLowerCase();
+                return signName.includes(searchTerm) ||
+                    studentName.includes(searchTerm) ||
+                    studentEmail.includes(searchTerm);
+            });
         }
         
-        // Renderizar gestos filtrados
-        this.renderFilteredSigns(filteredSigns);
+        this.renderSignsGrid(filteredAttempts);
     }
 
     renderFilteredStudents(students) {
@@ -457,7 +561,7 @@ class ProfessorPanel {
         if (!students.length) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="no-data">
+                    <td colspan="5" class="no-data">
                         <i class="fas fa-search"></i>
                         <p>No se encontraron estudiantes</p>
                     </td>
@@ -480,15 +584,7 @@ class ProfessorPanel {
                         ${student.average}%
                     </span>
                 </td>
-                <td>${new Date(student.lastActivity).toLocaleDateString('es-ES')}</td>
-                <td>
-                    <button onclick="professorPanel.viewStudent(${student.id})" class="btn btn-sm btn-primary">
-                        <i class="fas fa-eye"></i> Ver
-                    </button>
-                    <button onclick="professorPanel.evaluateStudent(${student.id})" class="btn btn-sm btn-secondary">
-                        <i class="fas fa-clipboard-check"></i> Evaluar
-                    </button>
-                </td>
+                <td>${student.lastActivity ? new Date(student.lastActivity).toLocaleDateString('es-ES') : 'N/A'}</td>
             </tr>
         `).join('');
     }
@@ -511,15 +607,15 @@ class ProfessorPanel {
         tbody.innerHTML = evaluations.map(evaluation => `
             <tr>
                 <td>${evaluation.studentName}</td>
-                <td>${evaluation.sign}</td>
-                <td>${new Date(evaluation.date).toLocaleDateString('es-ES')}</td>
+                <td>${evaluation.gestureName}</td>
+                <td>${evaluation.created_at ? new Date(evaluation.created_at).toLocaleDateString('es-ES') : 'N/A'}</td>
                 <td>
                     <span class="status-badge status-${evaluation.status}">
                         ${this.getStatusText(evaluation.status)}
                     </span>
                 </td>
                 <td>
-                    ${evaluation.score ? `${evaluation.score}%` : 'Pendiente'}
+                    ${typeof evaluation.score === 'number' ? `${evaluation.score}%` : 'Pendiente'}
                 </td>
                 <td>
                     <button onclick="professorPanel.viewEvaluation(${evaluation.id})" class="btn btn-sm btn-primary">
@@ -532,39 +628,6 @@ class ProfessorPanel {
                     ` : ''}
                 </td>
             </tr>
-        `).join('');
-    }
-
-    renderFilteredSigns(signs) {
-        const container = document.getElementById('signsGrid');
-        
-        if (!signs.length) {
-            container.innerHTML = `
-                <div class="no-data">
-                    <i class="fas fa-search"></i>
-                    <p>No se encontraron gestos</p>
-                </div>
-            `;
-            return;
-        }
-        
-        container.innerHTML = signs.map(sign => `
-            <div class="sign-card">
-                <h3>${sign.name}</h3>
-                <p>${sign.description}</p>
-                <div class="sign-meta">
-                    <span class="difficulty difficulty-${sign.difficulty.toLowerCase()}">${sign.difficulty}</span>
-                    <span class="category">${sign.category}</span>
-                </div>
-                <div class="sign-actions">
-                    <button onclick="professorPanel.editSign(${sign.id})" class="btn btn-sm btn-primary">
-                        <i class="fas fa-edit"></i> Editar
-                    </button>
-                    <button onclick="professorPanel.deleteSign(${sign.id})" class="btn btn-sm btn-secondary">
-                        <i class="fas fa-trash"></i> Eliminar
-                    </button>
-                </div>
-            </div>
         `).join('');
     }
 
@@ -586,27 +649,99 @@ class ProfessorPanel {
 
     // Modal de evaluación
     createEvaluation() {
-        // Poblar selectores
-        this.populateEvaluationSelectors();
-        
-        // Mostrar modal
+        this.currentEvaluationAttempt = null;
+        this.openEvaluationModal({});
+    }
+
+    startEvaluationFromAttempt(attemptIndex) {
+        const record = this.gestureAttempts[attemptIndex];
+        if (!record) {
+            this.showMessage('No se encontró la información del intento seleccionado', 'error');
+            return;
+        }
+        this.currentEvaluationAttempt = {
+            attemptIndex,
+            ...record
+        };
+        const prefill = {
+            studentId: record.student?.id,
+            gestureName: record.attempt?.sign,
+            gestureId: record.attempt?.gestureId || null,
+            attemptId: record.attempt?.id || record.attempt?.attemptId || null,
+            attemptTimestamp: record.attempt?.timestamp || null,
+            defaultScore: typeof record.attempt?.percentage === 'number' ? record.attempt.percentage : ''
+        };
+        this.openEvaluationModal(prefill);
+    }
+
+    openEvaluationModal(prefill) {
+        const today = new Date().toISOString().split('T')[0];
+        const evaluationDate = document.getElementById('evaluationDate');
+        const evaluationNotes = document.getElementById('evaluationNotes');
+        const evaluationScore = document.getElementById('evaluationScore');
+        const studentSelect = document.getElementById('evaluationStudent');
+        const gestureSelect = document.getElementById('evaluationSign');
+        const gestureIdInput = document.getElementById('evaluationGestureId');
+        const attemptIdInput = document.getElementById('evaluationAttemptId');
+        const timestampInput = document.getElementById('evaluationTimestamp');
+
+        this.populateEvaluationSelectors(prefill);
+
+        if (prefill?.studentId) {
+            studentSelect.value = prefill.studentId;
+            studentSelect.disabled = true;
+        } else {
+            studentSelect.disabled = false;
+        }
+
+        if (prefill?.gestureName) {
+            if (![...gestureSelect.options].some(option => option.value === prefill.gestureName)) {
+                const option = document.createElement('option');
+                option.value = prefill.gestureName;
+                option.textContent = prefill.gestureName;
+                gestureSelect.appendChild(option);
+            }
+            gestureSelect.value = prefill.gestureName;
+            gestureSelect.disabled = true;
+        } else {
+            gestureSelect.disabled = false;
+        }
+
+        evaluationDate.value = prefill?.attemptTimestamp
+            ? new Date(prefill.attemptTimestamp).toISOString().split('T')[0]
+            : today;
+
+        evaluationNotes.value = '';
+        evaluationScore.value = prefill?.defaultScore !== '' ? prefill.defaultScore : '';
+
+        gestureIdInput.value = prefill?.gestureId || '';
+        attemptIdInput.value = prefill?.attemptId || '';
+        timestampInput.value = prefill?.attemptTimestamp || '';
+
         document.getElementById('evaluationModal').style.display = 'block';
     }
 
     closeEvaluationModal() {
         document.getElementById('evaluationModal').style.display = 'none';
         document.getElementById('evaluationForm').reset();
+        document.getElementById('evaluationStudent').disabled = false;
+        document.getElementById('evaluationSign').disabled = false;
+        document.getElementById('evaluationGestureId').value = '';
+        document.getElementById('evaluationAttemptId').value = '';
+        document.getElementById('evaluationTimestamp').value = '';
+        this.currentEvaluationAttempt = null;
     }
 
-    populateEvaluationSelectors() {
+    populateEvaluationSelectors(prefill = {}) {
         const studentSelect = document.getElementById('evaluationStudent');
         const signSelect = document.getElementById('evaluationSign');
         
-        // Limpiar opciones
         studentSelect.innerHTML = '<option value="">Seleccionar estudiante...</option>';
-        signSelect.innerHTML = '<option value="">Seleccionar gesto...</option>';
+        signSelect.innerHTML = '<option value="">Primero selecciona un estudiante</option>';
         
-        // Agregar estudiantes
+        // Deshabilitar selector de gestos hasta que se seleccione un estudiante
+        signSelect.disabled = true;
+        
         this.students.forEach(student => {
             const option = document.createElement('option');
             option.value = student.id;
@@ -614,35 +749,138 @@ class ProfessorPanel {
             studentSelect.appendChild(option);
         });
         
-        // Agregar gestos
-        this.signs.forEach(sign => {
+        // Event listener para filtrar gestos cuando cambie el estudiante
+        studentSelect.onchange = () => {
+            const selectedStudentId = studentSelect.value;
+            if (selectedStudentId) {
+                // Habilitar selector de gestos
+                signSelect.disabled = false;
+                this.filterGesturesByStudent(selectedStudentId);
+            } else {
+                // Deshabilitar selector de gestos
+                signSelect.disabled = true;
+                signSelect.innerHTML = '<option value="">Primero selecciona un estudiante</option>';
+            }
+        };
+        
+        // Si hay un estudiante preseleccionado, habilitar y filtrar sus gestos
+        if (prefill?.studentId) {
+            signSelect.disabled = false;
+            this.filterGesturesByStudent(prefill.studentId);
+        } else {
+            // Si no hay estudiante seleccionado, mostrar todos los gestos
+            const uniqueSigns = Array.from(new Set(this.gestureAttempts
+                .map(record => record.attempt?.sign)
+                .filter(Boolean)));
+
+            uniqueSigns.forEach(sign => {
+                const option = document.createElement('option');
+                option.value = sign;
+                option.textContent = sign;
+                signSelect.appendChild(option);
+            });
+
+            if (prefill?.gestureName && !uniqueSigns.includes(prefill.gestureName)) {
+                const option = document.createElement('option');
+                option.value = prefill.gestureName;
+                option.textContent = prefill.gestureName;
+                signSelect.appendChild(option);
+            }
+        }
+    }
+    
+    filterGesturesByStudent(studentId) {
+        const signSelect = document.getElementById('evaluationSign');
+        signSelect.innerHTML = '<option value="">Seleccionar gesto...</option>';
+        
+        if (!studentId) {
+            // Si no hay estudiante, mostrar todos los gestos
+            const uniqueSigns = Array.from(new Set(this.gestureAttempts
+                .map(record => record.attempt?.sign)
+                .filter(Boolean)));
+            
+            uniqueSigns.forEach(sign => {
+                const option = document.createElement('option');
+                option.value = sign;
+                option.textContent = sign;
+                signSelect.appendChild(option);
+            });
+            return;
+        }
+        
+        // Filtrar gestos solo del estudiante seleccionado
+        const studentGestures = this.gestureAttempts
+            .filter(record => record.student?.id == studentId)
+            .map(record => record.attempt?.sign)
+            .filter(Boolean);
+        
+        const uniqueStudentSigns = Array.from(new Set(studentGestures));
+        
+        if (uniqueStudentSigns.length === 0) {
+            signSelect.innerHTML = '<option value="">Este estudiante no tiene gestos registrados</option>';
+            console.log(`[Filtro] Estudiante ${studentId} no tiene gestos registrados`);
+            return;
+        }
+        
+        console.log(`[Filtro] Estudiante ${studentId} tiene ${uniqueStudentSigns.length} gestos únicos: ${uniqueStudentSigns.join(', ')}`);
+        
+        uniqueStudentSigns.forEach(sign => {
             const option = document.createElement('option');
-            option.value = sign.id;
-            option.textContent = sign.name;
+            option.value = sign;
+            option.textContent = sign;
             signSelect.appendChild(option);
         });
     }
 
     async saveEvaluation() {
         try {
-            const studentId = document.getElementById('evaluationStudent').value;
-            const signId = document.getElementById('evaluationSign').value;
-            const date = document.getElementById('evaluationDate').value;
-            const notes = document.getElementById('evaluationNotes').value;
-            
-            if (!studentId || !signId || !date) {
+            const studentSelect = document.getElementById('evaluationStudent');
+            const gestureSelect = document.getElementById('evaluationSign');
+            const evaluationDate = document.getElementById('evaluationDate').value;
+            const evaluationNotes = document.getElementById('evaluationNotes').value;
+            const evaluationScore = document.getElementById('evaluationScore').value;
+            const gestureIdInput = document.getElementById('evaluationGestureId').value;
+            const attemptIdInput = document.getElementById('evaluationAttemptId').value;
+            const timestampInput = document.getElementById('evaluationTimestamp').value;
+
+            const studentId = studentSelect.value;
+            const gestureName = gestureSelect.value;
+
+            if (!studentId || !gestureName || !evaluationDate || evaluationScore === '') {
                 this.showMessage('Por favor completa todos los campos requeridos', 'error');
                 return;
             }
-            
-            // En un sistema real, esto haría una llamada a la API
+
+            const payload = {
+                gestureId: gestureIdInput || null,
+                gestureName,
+                attemptId: attemptIdInput || null,
+                attemptTimestamp: timestampInput || null,
+                score: Number(evaluationScore),
+                comments: evaluationNotes || null,
+                status: 'completed'
+            };
+
+            const response = await fetch(`/api/professor/students/${studentId}/evaluation`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'No se pudo guardar la evaluación');
+            }
+
             this.showMessage('Evaluación creada exitosamente', 'success');
             this.closeEvaluationModal();
             await this.loadEvaluations();
-            
         } catch (error) {
             console.error('Error guardando evaluación:', error);
-            this.showMessage('Error guardando evaluación', 'error');
+            this.showMessage(error.message || 'Error guardando evaluación', 'error');
         }
     }
 
@@ -658,7 +896,11 @@ class ProfessorPanel {
         const student = this.students.find(s => s.id === studentId);
         if (!student) return;
         
-        this.showMessage(`Iniciando evaluación para: ${student.name}`, 'success');
+        this.currentEvaluationAttempt = {
+            student,
+            attempt: null
+        };
+        this.openEvaluationModal({ studentId: student.id });
     }
 
     // Acciones de evaluaciones
@@ -666,35 +908,55 @@ class ProfessorPanel {
         const evaluation = this.evaluations.find(e => e.id === evaluationId);
         if (!evaluation) return;
         
-        this.showMessage(`Viendo evaluación: ${evaluation.sign}`, 'success');
+        // Llenar el modal con los datos de la evaluación
+        document.getElementById('viewEvalStudent').textContent = evaluation.studentName || 'N/A';
+        document.getElementById('viewEvalGesture').textContent = evaluation.gestureName || 'N/A';
+        document.getElementById('viewEvalDate').textContent = evaluation.created_at 
+            ? new Date(evaluation.created_at).toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            })
+            : 'N/A';
+        
+        // Estado con badge de color
+        const statusSpan = document.getElementById('viewEvalStatus');
+        statusSpan.textContent = evaluation.status === 'completed' ? 'Completada' : 'Pendiente';
+        statusSpan.className = `status-badge ${evaluation.status}`;
+        
+        // Puntuación con badge de color
+        const scoreSpan = document.getElementById('viewEvalScore');
+        const score = typeof evaluation.score === 'number' ? evaluation.score : 0;
+        scoreSpan.textContent = `${score}%`;
+        scoreSpan.className = `score-badge ${this.getScoreClass(score)}`;
+        
+        // Comentarios
+        document.getElementById('viewEvalComments').textContent = evaluation.comments || 'Sin comentarios';
+        
+        // Mostrar modal
+        document.getElementById('viewEvaluationModal').style.display = 'block';
+    }
+    
+    closeViewEvaluationModal() {
+        document.getElementById('viewEvaluationModal').style.display = 'none';
+    }
+    
+    getScoreClass(score) {
+        if (score >= 80) return 'excellent';
+        if (score >= 60) return 'good';
+        if (score >= 40) return 'average';
+        return 'needs-improvement';
     }
 
     completeEvaluation(evaluationId) {
         const evaluation = this.evaluations.find(e => e.id === evaluationId);
         if (!evaluation) return;
         
-        this.showMessage(`Completando evaluación: ${evaluation.sign}`, 'success');
+        this.showMessage(`La evaluación "${evaluation.gestureName}" ya está registrada`, 'success');
     }
 
-    // Acciones de gestos
-    editSign(signId) {
-        const sign = this.signs.find(s => s.id === signId);
-        if (!sign) return;
-        
-        this.showMessage(`Editando gesto: ${sign.name}`, 'success');
-    }
-
-    deleteSign(signId) {
-        const sign = this.signs.find(s => s.id === signId);
-        if (!sign) return;
-        
-        if (confirm(`¿Estás seguro de que quieres eliminar el gesto "${sign.name}"?`)) {
-            this.showMessage(`Gesto "${sign.name}" eliminado`, 'success');
-        }
-    }
-
-    addSign() {
-        this.showMessage('Agregando nuevo gesto', 'success');
+    cleanup() {
+        // Espacio reservado para limpiar listeners si se agregan en el futuro
     }
 
     showLoading(show) {
@@ -722,12 +984,19 @@ class ProfessorPanel {
 
 // Función global para logout
 function logout() {
+    if (window.professorPanel?.cleanup) {
+        window.professorPanel.cleanup();
+    }
     localStorage.removeItem('token');
     window.location.href = '/login';
 }
 
 // Inicializar el panel cuando se carga la página
-let professorPanel;
 document.addEventListener('DOMContentLoaded', () => {
-    professorPanel = new ProfessorPanel();
+    window.professorPanel = new ProfessorPanel();
+});
+window.addEventListener('beforeunload', () => {
+    if (window.professorPanel?.cleanup) {
+        window.professorPanel.cleanup();
+    }
 });

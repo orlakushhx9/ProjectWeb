@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { getConnection } = require('../config/database');
 
 class User {
@@ -7,6 +8,7 @@ class User {
         this.name = data.name;
         this.email = data.email;
         this.password = data.password;
+        this.firebase_uid = data.firebase_uid || null;
         this.role = data.role || 'estudiante'; // admin, profesor, estudiante, padre
         this.parent_id = data.parent_id || null; // Para estudiantes que tienen padre asignado
         this.created_at = data.created_at;
@@ -16,16 +18,23 @@ class User {
     // Crear nuevo usuario
     static async create(userData) {
         try {
-            const { name, email, password, role = 'estudiante', parent_id = null } = userData;
+            const {
+                name,
+                email,
+                password,
+                role = 'estudiante',
+                parent_id = null,
+                firebase_uid = null
+            } = userData;
             const pool = await getConnection();
             
-            // Hash de la contraseña
-            const hashedPassword = await bcrypt.hash(password, 10);
+            // Hash de la contraseña con SHA-256 (compatible con Firebase)
+            const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
 
             const [result] = await pool.execute(`
-                INSERT INTO users (name, email, password, role, parent_id) 
-                VALUES (?, ?, ?, ?, ?)
-            `, [name, email, hashedPassword, role, parent_id]);
+                INSERT INTO users (name, email, password, role, parent_id, firebase_uid) 
+                VALUES (?, ?, ?, ?, ?, ?)
+            `, [name, email, hashedPassword, role, parent_id, firebase_uid]);
             
             // Obtener el usuario creado
             const [rows] = await pool.execute('SELECT * FROM users WHERE id = ?', [result.insertId]);
@@ -82,7 +91,10 @@ class User {
     // Verificar contraseña
     async comparePassword(candidatePassword) {
         try {
-            return await bcrypt.compare(candidatePassword, this.password);
+            // Hashear la contraseña ingresada con SHA-256
+            const hashedCandidate = crypto.createHash('sha256').update(candidatePassword).digest('hex');
+            // Comparar directamente los hashes
+            return hashedCandidate === this.password;
         } catch (error) {
             throw error;
         }
@@ -94,6 +106,7 @@ class User {
             id: this.id,
             name: this.name,
             email: this.email,
+            firebase_uid: this.firebase_uid,
             role: this.role,
             parent_id: this.parent_id,
             created_at: this.created_at,
