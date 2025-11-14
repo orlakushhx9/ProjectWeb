@@ -168,31 +168,52 @@ class StudentPanel {
     
     async loadEvaluations() {
         try {
-            const response = await fetch('/api/student/my-evaluations', {
+            console.log('[Student] Cargando evaluaciones...');
+            const response = await fetch(`${window.API_BASE_URL || '/api'}/student/my-evaluations`, {
                 headers: {
                     'Authorization': `Bearer ${this.token}`
                 }
             });
 
             if (!response.ok) {
+                console.warn(`[Student] Error en respuesta de evaluaciones: ${response.status}`);
                 this.evaluations = [];
                 return;
             }
 
             const data = await response.json();
+            console.log('[Student] Respuesta de my-evaluations:', {
+                success: data.success,
+                evaluationsCount: data.data?.evaluations?.length || 0,
+                total: data.data?.total || 0
+            });
+            
             this.evaluations = data.data?.evaluations || [];
             
-            console.log(`[Estudiante] Cargadas ${this.evaluations.length} evaluaciones del profesor`);
+            if (this.evaluations.length > 0) {
+                console.log(`[Student] ✅ Cargadas ${this.evaluations.length} evaluaciones del profesor`);
+                console.log('[Student] Muestra de evaluaciones:', this.evaluations.slice(0, 3).map(e => ({
+                    id: e.id,
+                    gesture: e.gesture_name,
+                    score: e.score
+                })));
+            } else {
+                console.warn('[Student] ⚠️ No se encontraron evaluaciones para este estudiante');
+            }
             
         } catch (error) {
-            console.error('Error cargando evaluaciones:', error);
+            console.error('[Student] Error cargando evaluaciones:', error);
             this.evaluations = [];
         }
     }
 
     async loadPractices() {
         try {
+            console.log('[Student] Cargando prácticas...');
+            
+            // Intentar usar Firebase si está disponible
             if (this.firebase?.service?.isReady && this.firebase?.uid) {
+                console.log('[Student] Usando Firebase para cargar prácticas');
                 // Los datos se actualizan en tiempo real mediante Firebase
                 this.renderPracticesTable();
                 this.renderRecentPractices();
@@ -201,33 +222,44 @@ class StudentPanel {
                 return;
             }
 
-            // Obtener prácticas reales de la API (por ahora estará vacío hasta que se implemente)
-            const response = await fetch('/api/student/my-attempts', {
+            // Obtener prácticas desde la API (Firebase Admin)
+            console.log('[Student] Usando API para cargar prácticas');
+            const response = await fetch(`${window.API_BASE_URL || '/api'}/student/my-attempts`, {
                 headers: {
                     'Authorization': `Bearer ${this.token}`
                 }
             });
 
             if (!response.ok) {
-                // Si no hay prácticas aún, usar array vacío
+                console.warn(`[Student] Error en respuesta: ${response.status}`);
                 this.practices = [];
             } else {
                 const data = await response.json();
-                // Mapear datos reales de las prácticas cuando existan
-                this.practices = data.data.attempts.map(attempt => ({
-                    id: attempt.id,
-                    date: attempt.date || attempt.created_at,
-                    sign: attempt.sign || 'N/A',
-                    score: attempt.score || 0,
-                    status: this.getPerformanceStatus(attempt.score || 0)
+                console.log('[Student] Respuesta de my-attempts:', {
+                    success: data.success,
+                    attemptsCount: data.data?.attempts?.length || 0,
+                    summary: data.data?.summary
+                });
+                
+                // Mapear datos de las prácticas
+                this.practices = (data.data.attempts || []).map(attempt => ({
+                    id: attempt.id || `${attempt.gestureId}-${attempt.timestamp}`,
+                    date: attempt.date || attempt.timestamp || new Date().toISOString(),
+                    sign: attempt.sign || attempt.gestureName || 'N/A',
+                    score: attempt.percentage || attempt.score || 0,
+                    status: this.getPerformanceStatus(attempt.percentage || attempt.score || 0)
                 }));
+                
+                console.log(`[Student] ✅ ${this.practices.length} prácticas cargadas`);
             }
             
             this.renderPracticesTable();
             this.renderRecentPractices();
+            this.updateDashboardStats();
+            this.updateProfileStats();
             
         } catch (error) {
-            console.error('Error cargando prácticas:', error);
+            console.error('[Student] Error cargando prácticas:', error);
             this.showMessage('Error cargando prácticas', 'error');
             // Si hay error, mostrar lista vacía
             this.practices = [];

@@ -14,14 +14,60 @@ const router = express.Router();
 
 // ===== RUTAS DE ESTUDIANTE =====
 
-// Obtener historial de intentos del estudiante
+// Obtener historial de intentos del estudiante desde Firebase
 router.get('/my-attempts', authenticateToken, requireStudent, async (req, res) => {
-    res.json({
-        success: true,
-        data: {
-            attempts: []
+    try {
+        const student = await User.findById(req.userData.id);
+        
+        if (!student || !student.isStudent()) {
+            return res.status(404).json({
+                success: false,
+                message: 'Estudiante no encontrado'
+            });
         }
-    });
+
+        let gestureData = {
+            summary: {
+                totalAttempts: 0,
+                averageScore: 0,
+                lastPractice: null,
+                bestScore: 0,
+                progressPercent: 0
+            },
+            attempts: []
+        };
+
+        // Si el estudiante tiene firebase_uid, obtener gestos de Firebase
+        if (student.firebase_uid) {
+            try {
+                const { getGestureAttemptsForUser } = require('../services/firebaseAdmin');
+                gestureData = await getGestureAttemptsForUser(student.firebase_uid);
+                console.log(`[Student] Gestos obtenidos para ${student.email}:`, {
+                    totalAttempts: gestureData.attempts.length,
+                    averageScore: gestureData.summary.averageScore
+                });
+            } catch (firebaseError) {
+                console.error(`[Student] Error obteniendo gestos de Firebase para ${student.email}:`, firebaseError.message);
+                // Continuar con datos vacíos si Firebase falla
+            }
+        } else {
+            console.warn(`[Student] Estudiante ${student.email} no tiene firebase_uid`);
+        }
+
+        res.json({
+            success: true,
+            data: {
+                attempts: gestureData.attempts,
+                summary: gestureData.summary
+            }
+        });
+    } catch (error) {
+        console.error('[Student] Error al obtener intentos del estudiante:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor'
+        });
+    }
 });
 
 // Obtener estadísticas del estudiante
