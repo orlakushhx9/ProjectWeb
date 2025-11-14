@@ -17,16 +17,27 @@ const firebaseConfig = window.__FIREBASE_CONFIG__;
 let app = null;
 let database = null;
 
+console.log('[Firebase Data] Inicializando módulo...');
+console.log('[Firebase Data] window.__FIREBASE_CONFIG__ existe?', !!firebaseConfig);
+
 if (!firebaseConfig) {
-  console.warn('[Firebase] No se encontró window.__FIREBASE_CONFIG__. Configura las credenciales de Firebase antes de cargar firebase-data.js');
+  console.warn('[Firebase Data] ⚠️ No se encontró window.__FIREBASE_CONFIG__. Configura las credenciales de Firebase antes de cargar firebase-data.js');
 } else {
   try {
+    console.log('[Firebase Data] Inicializando Firebase App...');
     app = initializeApp(firebaseConfig);
+    console.log('[Firebase Data] ✅ Firebase App inicializado');
+    
+    console.log('[Firebase Data] Obteniendo Database...');
     database = getDatabase(app);
+    console.log('[Firebase Data] ✅ Database obtenido');
   } catch (error) {
-    console.error('[Firebase] Error inicializando Firebase:', error);
+    console.error('[Firebase Data] ❌ Error inicializando Firebase:', error);
+    console.error('[Firebase Data] Stack:', error.stack);
   }
 }
+
+console.log('[Firebase Data] Estado final - app:', !!app, 'database:', !!database);
 
 const ensureDatabase = () => {
   if (!database) {
@@ -199,6 +210,7 @@ const getStudentsByProfessorUid = async (professorUid) => {
     .map(([uid, user]) => ({ uid, ...user }));
 };
 
+// Exponer servicio globalmente
 window.firebaseDataService = {
   isReady: Boolean(database),
   app,
@@ -213,4 +225,7 @@ window.firebaseDataService = {
   getChildrenByParentUid,
   getStudentsByProfessorUid
 };
+
+console.log('[Firebase Data] ✅ window.firebaseDataService expuesto');
+console.log('[Firebase Data] isReady:', window.firebaseDataService.isReady);
 

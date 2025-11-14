@@ -162,10 +162,10 @@ class StudentPanel {
             await this.loadEvaluations();
             console.log('[Student] Paso 1 completado. Evaluaciones:', this.evaluations.length);
             
-            // Cargar prácticas de Firebase
-            console.log('[Student] Paso 2: Cargando prácticas...');
+            // Cargar prácticas desde la API (NO depende de Firebase)
+            console.log('[Student] Paso 2: Cargando prácticas desde API...');
             await this.loadPractices();
-            console.log('[Student] Paso 2 completado. Prácticas:', this.practices.length);
+            console.log('[Student] Paso 2 completado. Prácticas cargadas:', this.practices.length);
             
             // Combinar evaluaciones con prácticas
             console.log('[Student] Paso 3: Combinando prácticas y evaluaciones...');
