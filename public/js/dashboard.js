@@ -1,5 +1,5 @@
-// Configuración de la API
-const API_BASE_URL = 'http://localhost:5000/api';
+// Configuración de la API - Se carga desde config.js
+const API_BASE_URL = window.API_BASE_URL || '/api';
 
 // Verificar autenticación al cargar la página
 window.addEventListener('load', () => {
