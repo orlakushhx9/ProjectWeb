@@ -145,11 +145,14 @@ class StudentPanel {
                 this.showLoading(true);
             }
             
+            // Cargar evaluaciones del profesor primero
+            await this.loadEvaluations();
+            
             // Cargar prácticas de Firebase
             await this.loadPractices();
             
-            // Cargar evaluaciones del profesor
-            await this.loadEvaluations();
+            // Combinar evaluaciones con prácticas
+            this.combinePracticesAndEvaluations();
             
             // Actualizar estadísticas del dashboard
             this.updateDashboardStats();
@@ -164,6 +167,57 @@ class StudentPanel {
                 this.showLoading(false);
             }
         }
+    }
+    
+    combinePracticesAndEvaluations() {
+        console.log('[Student] Combinando prácticas y evaluaciones...');
+        
+        // Convertir evaluaciones del profesor a formato de práctica
+        const evaluatedPractices = (this.evaluations || []).map(evaluation => ({
+            id: `eval-${evaluation.id}`,
+            date: evaluation.attempt_timestamp || evaluation.created_at || new Date().toISOString(),
+            sign: evaluation.gesture_name || 'Gesto evaluado',
+            score: evaluation.score || 0,
+            status: this.getPerformanceStatus(evaluation.score || 0),
+            type: 'evaluated', // Marcar como evaluada
+            evaluation: evaluation, // Guardar datos completos de la evaluación
+            comments: evaluation.comments || null,
+            professor_id: evaluation.professor_id || null
+        }));
+        
+        console.log(`[Student] Evaluaciones convertidas a prácticas: ${evaluatedPractices.length}`);
+        
+        // Combinar prácticas de Firebase con evaluaciones
+        // Las evaluaciones tienen prioridad (son más recientes y revisadas)
+        const allPractices = [...evaluatedPractices, ...this.practices];
+        
+        // Eliminar duplicados basándose en fecha y signo (si una práctica tiene evaluación, priorizar la evaluación)
+        const uniquePractices = [];
+        const seen = new Map();
+        
+        allPractices.forEach(practice => {
+            const key = `${practice.sign}-${new Date(practice.date).toDateString()}`;
+            if (!seen.has(key) || practice.type === 'evaluated') {
+                if (seen.has(key) && practice.type === 'evaluated') {
+                    // Reemplazar práctica con evaluación
+                    const index = uniquePractices.findIndex(p => 
+                        `${p.sign}-${new Date(p.date).toDateString()}` === key
+                    );
+                    if (index !== -1) {
+                        uniquePractices[index] = practice;
+                    }
+                } else {
+                    uniquePractices.push(practice);
+                    seen.set(key, true);
+                }
+            }
+        });
+        
+        // Ordenar por fecha (más recientes primero)
+        uniquePractices.sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        this.practices = uniquePractices;
+        console.log(`[Student] ✅ Total de prácticas combinadas: ${this.practices.length} (${evaluatedPractices.length} evaluadas, ${this.practices.length - evaluatedPractices.length} de Firebase)`);
     }
     
     async loadEvaluations() {
@@ -197,6 +251,14 @@ class StudentPanel {
                     gesture: e.gesture_name,
                     score: e.score
                 })));
+                
+                // Si ya hay prácticas cargadas, combinarlas
+                if (this.practices && this.practices.length > 0) {
+                    this.combinePracticesAndEvaluations();
+                    this.renderPracticesTable();
+                    this.renderRecentPractices();
+                    this.updateDashboardStats();
+                }
             } else {
                 console.warn('[Student] ⚠️ No se encontraron evaluaciones para este estudiante');
             }
@@ -251,6 +313,11 @@ class StudentPanel {
                 }));
                 
                 console.log(`[Student] ✅ ${this.practices.length} prácticas cargadas`);
+            }
+            
+            // Combinar con evaluaciones si ya están cargadas
+            if (this.evaluations && this.evaluations.length > 0) {
+                this.combinePracticesAndEvaluations();
             }
             
             this.renderPracticesTable();
@@ -448,18 +515,26 @@ class StudentPanel {
             return;
         }
         
-        tbody.innerHTML = this.practices.map(practice => `
-            <tr>
+        tbody.innerHTML = this.practices.map(practice => {
+            const isEvaluated = practice.type === 'evaluated';
+            const badgeIcon = isEvaluated ? '<i class="fas fa-check-circle"></i> ' : '';
+            const badgeText = isEvaluated ? 'Revisada' : this.getStatusText(practice.status);
+            
+            return `
+            <tr class="${isEvaluated ? 'practice-evaluated' : ''}">
                 <td>${new Date(practice.date).toLocaleDateString('es-ES')}</td>
-                <td>${practice.sign}</td>
+                <td>
+                    ${practice.sign}
+                    ${isEvaluated ? '<span class="evaluated-badge" title="Práctica revisada por el profesor"><i class="fas fa-check-circle"></i></span>' : ''}
+                </td>
                 <td>
                     <span class="practice-score score-${practice.status}">
                         ${practice.score}%
                     </span>
                 </td>
                 <td>
-                    <span class="status-badge status-${practice.status}">
-                        ${this.getStatusText(practice.status)}
+                    <span class="status-badge status-${practice.status} ${isEvaluated ? 'status-evaluated' : ''}">
+                        ${badgeIcon}${badgeText}
                     </span>
                 </td>
                 <td>
@@ -468,7 +543,8 @@ class StudentPanel {
                     </button>
                 </td>
             </tr>
-        `).join('');
+            `;
+        }).join('');
     }
 
     renderRecentPractices() {
