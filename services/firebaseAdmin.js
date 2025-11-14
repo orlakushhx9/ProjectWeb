@@ -11,8 +11,15 @@ function initializeFirebaseAdmin() {
     const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
     const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
 
+    console.log('[Firebase Admin] Iniciando inicialización...');
+    console.log('[Firebase Admin] FIREBASE_DATABASE_URL:', databaseURL ? 'Definido' : 'NO DEFINIDO');
+    console.log('[Firebase Admin] FIREBASE_SERVICE_ACCOUNT_JSON:', serviceAccountJson ? 'Definido (' + serviceAccountJson.length + ' caracteres)' : 'NO DEFINIDO');
+    console.log('[Firebase Admin] NODE_ENV:', process.env.NODE_ENV);
+
     if (!databaseURL) {
-        throw new Error('FIREBASE_DATABASE_URL no está definido en las variables de entorno.');
+        const error = new Error('FIREBASE_DATABASE_URL no está definido en las variables de entorno.');
+        console.error('[Firebase Admin] Error:', error.message);
+        throw error;
     }
 
     let credential;
@@ -21,9 +28,12 @@ function initializeFirebaseAdmin() {
         try {
             const parsed = JSON.parse(serviceAccountJson);
             credential = admin.credential.cert(parsed);
-            console.log('Firebase Admin inicializado usando FIREBASE_SERVICE_ACCOUNT_JSON');
+            console.log('[Firebase Admin] ✅ Inicializado usando FIREBASE_SERVICE_ACCOUNT_JSON');
         } catch (error) {
-            throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON no contiene un JSON válido: ' + error.message);
+            const err = new Error('FIREBASE_SERVICE_ACCOUNT_JSON no contiene un JSON válido: ' + error.message);
+            console.error('[Firebase Admin] Error parseando JSON:', err.message);
+            console.error('[Firebase Admin] JSON recibido (primeros 100 caracteres):', serviceAccountJson.substring(0, 100));
+            throw err;
         }
     } else if (serviceAccountPath && process.env.NODE_ENV !== 'production') {
         // Solo permitir PATH en desarrollo, no en producción
@@ -31,20 +41,29 @@ function initializeFirebaseAdmin() {
             // eslint-disable-next-line global-require, import/no-dynamic-require
             const serviceAccount = require(serviceAccountPath);
             credential = admin.credential.cert(serviceAccount);
-            console.log('Firebase Admin inicializado usando FIREBASE_SERVICE_ACCOUNT_PATH (solo desarrollo)');
+            console.log('[Firebase Admin] ✅ Inicializado usando FIREBASE_SERVICE_ACCOUNT_PATH (solo desarrollo)');
         } catch (error) {
-            throw new Error(`No se pudo cargar el archivo de credenciales en FIREBASE_SERVICE_ACCOUNT_PATH (${serviceAccountPath}): ${error.message}`);
+            const err = new Error(`No se pudo cargar el archivo de credenciales en FIREBASE_SERVICE_ACCOUNT_PATH (${serviceAccountPath}): ${error.message}`);
+            console.error('[Firebase Admin] Error:', err.message);
+            throw err;
         }
     } else {
-        throw new Error('Debes definir FIREBASE_SERVICE_ACCOUNT_JSON en las variables de entorno. FIREBASE_SERVICE_ACCOUNT_PATH solo está disponible en desarrollo.');
+        const error = new Error('Debes definir FIREBASE_SERVICE_ACCOUNT_JSON en las variables de entorno. FIREBASE_SERVICE_ACCOUNT_PATH solo está disponible en desarrollo.');
+        console.error('[Firebase Admin] Error:', error.message);
+        throw error;
     }
 
-    admin.initializeApp({
-        credential,
-        databaseURL
-    });
-
-    firebaseInitialized = true;
+    try {
+        admin.initializeApp({
+            credential,
+            databaseURL
+        });
+        firebaseInitialized = true;
+        console.log('[Firebase Admin] ✅ Firebase Admin inicializado correctamente');
+    } catch (error) {
+        console.error('[Firebase Admin] Error al inicializar Firebase Admin:', error.message);
+        throw error;
+    }
 }
 
 async function getFirebaseUsers(existingEmails = new Set()) {

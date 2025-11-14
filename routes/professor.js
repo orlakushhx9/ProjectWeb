@@ -75,7 +75,21 @@ router.get('/gesture-attempts', authenticateToken, requireProfessorOrAdmin, asyn
             }
         });
 
-        const attemptsByUser = await getAllGestureAttempts();
+        let attemptsByUser = [];
+        try {
+            attemptsByUser = await getAllGestureAttempts();
+        } catch (firebaseError) {
+            console.error('Error al obtener gestos de Firebase:', firebaseError);
+            // Si Firebase falla, devolver lista vacía en lugar de error 500
+            return res.json({
+                success: true,
+                data: {
+                    attempts: [],
+                    warning: 'No se pudieron cargar los gestos de Firebase. Verifica la configuración de FIREBASE_SERVICE_ACCOUNT_JSON.'
+                }
+            });
+        }
+
         const records = [];
 
         attemptsByUser.forEach(({ firebase_uid, attempts }) => {
@@ -103,7 +117,8 @@ router.get('/gesture-attempts', authenticateToken, requireProfessorOrAdmin, asyn
         console.error('Error al obtener gestos detectados:', error);
         res.status(500).json({
             success: false,
-            message: 'Error interno del servidor'
+            message: 'Error interno del servidor',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });
