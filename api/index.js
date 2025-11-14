@@ -201,9 +201,6 @@ app.use('/api/student', studentRoutes);
 app.use('/api/parent', parentRoutes);
 app.use('/api/roles', rolesRoutes);
 
-// Ruta de prueba para Firebase (disponible siempre para diagnóstico)
-const testFirebaseRoutes = require('../routes/test-firebase');
-app.use('/api', testFirebaseRoutes);
 
 // Documentación Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
