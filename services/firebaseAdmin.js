@@ -21,19 +21,22 @@ function initializeFirebaseAdmin() {
         try {
             const parsed = JSON.parse(serviceAccountJson);
             credential = admin.credential.cert(parsed);
+            console.log('Firebase Admin inicializado usando FIREBASE_SERVICE_ACCOUNT_JSON');
         } catch (error) {
-            throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON no contiene un JSON válido.');
+            throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON no contiene un JSON válido: ' + error.message);
         }
-    } else if (serviceAccountPath) {
+    } else if (serviceAccountPath && process.env.NODE_ENV !== 'production') {
+        // Solo permitir PATH en desarrollo, no en producción
         try {
             // eslint-disable-next-line global-require, import/no-dynamic-require
             const serviceAccount = require(serviceAccountPath);
             credential = admin.credential.cert(serviceAccount);
+            console.log('Firebase Admin inicializado usando FIREBASE_SERVICE_ACCOUNT_PATH (solo desarrollo)');
         } catch (error) {
-            throw new Error(`No se pudo cargar el archivo de credenciales en FIREBASE_SERVICE_ACCOUNT_PATH (${serviceAccountPath}).`);
+            throw new Error(`No se pudo cargar el archivo de credenciales en FIREBASE_SERVICE_ACCOUNT_PATH (${serviceAccountPath}): ${error.message}`);
         }
     } else {
-        throw new Error('Debes definir FIREBASE_SERVICE_ACCOUNT_JSON o FIREBASE_SERVICE_ACCOUNT_PATH en las variables de entorno.');
+        throw new Error('Debes definir FIREBASE_SERVICE_ACCOUNT_JSON en las variables de entorno. FIREBASE_SERVICE_ACCOUNT_PATH solo está disponible en desarrollo.');
     }
 
     admin.initializeApp({

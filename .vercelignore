@@ -12,3 +12,6 @@ docs
 docker
 start_server.bat
 google-services.json
+Dockerfile
+.dockerignore
+

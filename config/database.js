@@ -1,5 +1,15 @@
 const mysql = require('mysql2/promise');
-require('dotenv').config({ path: './config.env' });
+const path = require('path');
+
+// Cargar variables de entorno
+// Intenta cargar desde config.env si existe, sino usa las variables de entorno del sistema
+try {
+    const configPath = path.join(__dirname, '..', 'config.env');
+    require('dotenv').config({ path: configPath });
+} catch (error) {
+    // Si no existe config.env, usar variables de entorno del sistema (Vercel, Docker, etc.)
+    require('dotenv').config();
+}
 
 // Configuración de la base de datos MySQL
 const dbConfig = {
