@@ -40,20 +40,33 @@ router.get('/my-attempts', authenticateToken, requireStudent, async (req, res) =
         // Si el estudiante tiene firebase_uid, obtener gestos de Firebase
         if (student.firebase_uid) {
             try {
+                console.log(`[Student] Obteniendo gestos de Firebase para ${student.email} (UID: ${student.firebase_uid})...`);
                 const { getGestureAttemptsForUser } = require('../services/firebaseAdmin');
                 gestureData = await getGestureAttemptsForUser(student.firebase_uid);
-                console.log(`[Student] Gestos obtenidos para ${student.email}:`, {
+                console.log(`[Student] ✅ Gestos obtenidos para ${student.email}:`, {
                     totalAttempts: gestureData.attempts.length,
-                    averageScore: gestureData.summary.averageScore
+                    averageScore: gestureData.summary.averageScore,
+                    bestScore: gestureData.summary.bestScore,
+                    sampleAttempts: gestureData.attempts.slice(0, 3).map(a => ({
+                        sign: a.sign,
+                        percentage: a.percentage,
+                        timestamp: a.timestamp
+                    }))
                 });
             } catch (firebaseError) {
-                console.error(`[Student] Error obteniendo gestos de Firebase para ${student.email}:`, firebaseError.message);
+                console.error(`[Student] ❌ Error obteniendo gestos de Firebase para ${student.email}:`, firebaseError.message);
+                console.error(`[Student] Stack:`, firebaseError.stack);
                 // Continuar con datos vacíos si Firebase falla
             }
         } else {
-            console.warn(`[Student] Estudiante ${student.email} no tiene firebase_uid`);
+            console.warn(`[Student] ⚠️ Estudiante ${student.email} (ID: ${student.id}) no tiene firebase_uid`);
         }
 
+        console.log(`[Student] Enviando respuesta para ${student.email}:`, {
+            totalAttempts: gestureData.attempts.length,
+            summary: gestureData.summary
+        });
+        
         res.json({
             success: true,
             data: {
