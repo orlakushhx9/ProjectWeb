@@ -1,3 +1,6 @@
+// Firebase Data Service - ES6 Module
+// Este archivo debe cargarse como módulo ES6: <script type="module" src="/js/firebase-data.js"></script>
+
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js';
 import {
   getDatabase,
@@ -8,6 +11,7 @@ import {
   off
 } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js';
 
+// Obtener configuración de Firebase desde window
 const firebaseConfig = window.__FIREBASE_CONFIG__;
 
 let app = null;

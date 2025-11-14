@@ -176,8 +176,15 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Servir archivos estáticos
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// Servir archivos estáticos con configuración para módulos ES6
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+    setHeaders: (res, filePath) => {
+        // Asegurar que los archivos .js se sirvan con el tipo MIME correcto
+        if (filePath.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+        }
+    }
+}));
 
 // Rutas API
 app.use('/api/auth', authRoutes);
