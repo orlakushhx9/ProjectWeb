@@ -469,28 +469,32 @@ class StudentPanel {
         console.log('[Dashboard] Total prácticas:', this.practices.length);
         console.log('[Dashboard] Total evaluaciones:', this.evaluations?.length || 0);
         
-        // Total de prácticas desde Firebase
+        // Total de prácticas (incluye evaluaciones y prácticas de Firebase)
         const totalPractices = this.practices.length;
+        const evaluatedCount = this.practices.filter(p => p.type === 'evaluated').length;
+        const firebaseCount = totalPractices - evaluatedCount;
+        
         document.getElementById('totalPractices').textContent = totalPractices;
         
-        // Si hay evaluaciones del profesor, usar ese promedio; si no, usar promedio de prácticas
+        // Calcular promedio y mejor puntuación de todas las prácticas (evaluadas y no evaluadas)
         let averageScore = 0;
         let bestScore = 0;
         
-        if (this.evaluations && this.evaluations.length > 0) {
-            // Calcular promedio basado en evaluaciones del profesor
-            averageScore = Math.round(this.evaluations.reduce((sum, e) => sum + (e.score || 0), 0) / this.evaluations.length);
-            bestScore = Math.max(...this.evaluations.map(e => e.score || 0));
-            console.log(`[Dashboard] ✓ Usando promedio de evaluaciones: ${averageScore}% (${this.evaluations.length} evaluaciones)`);
-        } else if (this.practices.length > 0) {
-            // Si no hay evaluaciones, usar promedio de prácticas
-            averageScore = Math.round(this.practices.reduce((sum, p) => sum + p.score, 0) / totalPractices);
-            bestScore = Math.max(...this.practices.map(p => p.score));
-            console.log(`[Dashboard] ✓ Usando promedio de prácticas: ${averageScore}% (${this.practices.length} prácticas)`);
+        if (this.practices.length > 0) {
+            // Calcular promedio de todas las prácticas combinadas
+            averageScore = Math.round(this.practices.reduce((sum, p) => sum + (p.score || 0), 0) / totalPractices);
+            bestScore = Math.max(...this.practices.map(p => p.score || 0));
+            
+            if (evaluatedCount > 0) {
+                console.log(`[Dashboard] ✓ Estadísticas combinadas: ${totalPractices} prácticas totales (${evaluatedCount} evaluadas, ${firebaseCount} de Firebase), promedio ${averageScore}%`);
+            } else {
+                console.log(`[Dashboard] ✓ Usando promedio de prácticas: ${averageScore}% (${this.practices.length} prácticas)`);
+            }
         } else {
             console.warn('[Dashboard] ⚠️ No hay prácticas ni evaluaciones para mostrar');
         }
         
+        // Última práctica (más reciente)
         const lastPractice = this.practices[0] ? new Date(this.practices[0].date).toLocaleDateString('es-ES') : 'N/A';
         
         document.getElementById('averageScore').textContent = `${averageScore}%`;
