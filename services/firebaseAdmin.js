@@ -228,25 +228,36 @@ async function getGestureAttemptsForUser(firebaseUid) {
         
         const attempts = normalizeGestureAttempts(raw);
 
-    const totalAttempts = attempts.length;
-    const averageScore = totalAttempts
-        ? Math.round(attempts.reduce((sum, attempt) => sum + (attempt.percentage || 0), 0) / totalAttempts)
-        : 0;
-    const bestScore = totalAttempts
-        ? Math.max(...attempts.map(attempt => attempt.percentage || 0))
-        : 0;
-    const lastPractice = totalAttempts ? new Date(attempts[0].timestamp).toISOString() : null;
+        const totalAttempts = attempts.length;
+        const averageScore = totalAttempts
+            ? Math.round(attempts.reduce((sum, attempt) => sum + (attempt.percentage || 0), 0) / totalAttempts)
+            : 0;
+        const bestScore = totalAttempts
+            ? Math.max(...attempts.map(attempt => attempt.percentage || 0))
+            : 0;
+        const lastPractice = totalAttempts ? new Date(attempts[0].timestamp).toISOString() : null;
 
-    return {
-        summary: {
+        console.log(`[Firebase Admin] ✅ Gestos procesados para ${firebaseUid}:`, {
             totalAttempts,
             averageScore,
-            lastPractice,
-            bestScore,
-            progressPercent: averageScore
-        },
-        attempts
-    };
+            bestScore
+        });
+
+        return {
+            summary: {
+                totalAttempts,
+                averageScore,
+                lastPractice,
+                bestScore,
+                progressPercent: averageScore
+            },
+            attempts
+        };
+    } catch (error) {
+        console.error(`[Firebase Admin] ❌ Error en getGestureAttemptsForUser para ${firebaseUid}:`, error.message);
+        console.error('[Firebase Admin] Stack:', error.stack);
+        throw error;
+    }
 }
 
 
