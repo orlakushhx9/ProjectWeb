@@ -22,16 +22,27 @@ class StudentPanel {
 
     async init() {
         try {
+            console.log('[Student] ===== INICIALIZANDO PANEL =====');
             await this.loadUserData();
-            await this.setupFirebaseIntegration();
+            
+            // Intentar configurar Firebase, pero no bloquear si falla
+            try {
+                await this.setupFirebaseIntegration();
+            } catch (firebaseError) {
+                console.warn('[Student] ⚠️ Firebase no disponible, continuando sin Firebase:', firebaseError.message);
+                // Continuar sin Firebase
+            }
+            
             this.setupNavigation();
             this.setupEventListeners();
             await this.loadDashboardData();
             
             // 🔄 AUTO-REFRESH: Actualizar gestos en tiempo real cada 5 segundos
             this.startAutoRefresh();
+            console.log('[Student] ===== PANEL INICIALIZADO =====');
         } catch (error) {
-            console.error('Error inicializando panel:', error);
+            console.error('[Student] ❌ Error inicializando panel:', error);
+            console.error('[Student] Stack:', error.stack);
             this.showMessage('Error cargando datos del usuario', 'error');
         }
     }
@@ -417,14 +428,30 @@ class StudentPanel {
     }
     
     async setupFirebaseIntegration() {
+        // Esperar un poco para que firebase-data.js se cargue (si es módulo ES6)
+        // Verificar si window.firebaseDataService existe
+        if (!window.firebaseDataService) {
+            console.log('[Firebase] Esperando a que firebaseDataService se cargue...');
+            // Esperar hasta 2 segundos
+            for (let i = 0; i < 20; i++) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                if (window.firebaseDataService) {
+                    break;
+                }
+            }
+        }
+        
+        // Actualizar referencia al servicio
+        this.firebase.service = window.firebaseDataService || null;
         const service = this.firebase?.service;
         
         console.log('[Firebase] Iniciando integración...');
+        console.log('[Firebase] window.firebaseDataService existe?', !!window.firebaseDataService);
         console.log('[Firebase] Service ready?', service?.isReady);
         console.log('[Firebase] User email:', this.userData?.email);
         
         if (!service?.isReady) {
-            console.warn('[Firebase] Service no está listo');
+            console.warn('[Firebase] ⚠️ Service no está listo. Continuando sin Firebase.');
             return;
         }
         
