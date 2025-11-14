@@ -295,8 +295,24 @@ class ProfessorPanel {
             }
 
             const data = await response.json();
+            console.log('[Professor] Respuesta de gesture-attempts:', {
+                success: data.success,
+                attemptsCount: data.data?.attempts?.length || 0,
+                debug: data.data?.debug,
+                warning: data.data?.warning
+            });
+            
             this.gestureAttempts = data.data.attempts || [];
             this.signs = this.gestureAttempts;
+            
+            if (data.data?.warning) {
+                console.warn('[Professor] ⚠️ Advertencia:', data.data.warning);
+            }
+            
+            if (data.data?.debug) {
+                console.log('[Professor] Debug info:', data.data.debug);
+            }
+            
             this.renderSignsGrid();
         } catch (error) {
             console.error('Error cargando gestos:', error);
