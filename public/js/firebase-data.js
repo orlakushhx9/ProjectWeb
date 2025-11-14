@@ -1,5 +1,15 @@
 // Firebase Data Service - ES6 Module
-// Este archivo debe cargarse como módulo ES6: <script type="module" src="/js/firebase-data.js"></script>
+// Este archivo DEBE cargarse como módulo ES6: <script type="module" src="/js/firebase-data.js"></script>
+// NO usar require() - este archivo usa import/export de ES6
+
+// Verificar que estamos en un contexto de módulo ES6
+if (typeof require !== 'undefined') {
+  console.error('[Firebase Data] ❌ ERROR: Este archivo debe cargarse como módulo ES6, no como CommonJS');
+  console.error('[Firebase Data] Asegúrate de usar: <script type="module" src="/js/firebase-data.js"></script>');
+  throw new Error('firebase-data.js debe cargarse como módulo ES6 (type="module")');
+}
+
+console.log('[Firebase Data] ✅ Cargado como módulo ES6');
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js';
 import {
