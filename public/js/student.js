@@ -202,52 +202,52 @@ class StudentPanel {
     combinePracticesAndEvaluations() {
         console.log('[Student] Combinando prácticas y evaluaciones...');
         
-        // Convertir evaluaciones del profesor a formato de práctica
+        // Convertir TODAS las evaluaciones del profesor a formato de práctica
         const evaluatedPractices = (this.evaluations || []).map(evaluation => ({
             id: `eval-${evaluation.id}`,
-            date: evaluation.attempt_timestamp || evaluation.created_at || new Date().toISOString(),
+            date: evaluation.attempt_timestamp || evaluation.created_at || evaluation.updated_at || new Date().toISOString(),
             sign: evaluation.gesture_name || 'Gesto evaluado',
             score: evaluation.score || 0,
             status: this.getPerformanceStatus(evaluation.score || 0),
             type: 'evaluated', // Marcar como evaluada
             evaluation: evaluation, // Guardar datos completos de la evaluación
             comments: evaluation.comments || null,
-            professor_id: evaluation.professor_id || null
+            professor_id: evaluation.professor_id || null,
+            status_evaluation: evaluation.status || 'completed' // Estado de la evaluación
         }));
         
         console.log(`[Student] Evaluaciones convertidas a prácticas: ${evaluatedPractices.length}`);
         
-        // Combinar prácticas de Firebase con evaluaciones
-        // Las evaluaciones tienen prioridad (son más recientes y revisadas)
-        const allPractices = [...evaluatedPractices, ...this.practices];
+        // Separar prácticas del usuario (sin evaluar)
+        const userPractices = (this.practices || []).filter(p => p.type !== 'evaluated');
         
-        // Eliminar duplicados basándose en fecha y signo (si una práctica tiene evaluación, priorizar la evaluación)
-        const uniquePractices = [];
-        const seen = new Map();
-        
-        allPractices.forEach(practice => {
-            const key = `${practice.sign}-${new Date(practice.date).toDateString()}`;
-            if (!seen.has(key) || practice.type === 'evaluated') {
-                if (seen.has(key) && practice.type === 'evaluated') {
-                    // Reemplazar práctica con evaluación
-                    const index = uniquePractices.findIndex(p => 
-                        `${p.sign}-${new Date(p.date).toDateString()}` === key
-                    );
-                    if (index !== -1) {
-                        uniquePractices[index] = practice;
-                    }
-                } else {
-                    uniquePractices.push(practice);
-                    seen.set(key, true);
-                }
+        // Crear un mapa de prácticas evaluadas por signo y fecha para evitar duplicados
+        const evaluatedMap = new Map();
+        evaluatedPractices.forEach(eval => {
+            const key = `${eval.sign}-${new Date(eval.date).toDateString()}`;
+            if (!evaluatedMap.has(key)) {
+                evaluatedMap.set(key, eval);
             }
         });
         
-        // Ordenar por fecha (más recientes primero)
-        uniquePractices.sort((a, b) => new Date(b.date) - new Date(a.date));
+        // Filtrar prácticas del usuario que ya tienen evaluación
+        const practicesWithoutEvaluation = userPractices.filter(practice => {
+            const key = `${practice.sign}-${new Date(practice.date).toDateString()}`;
+            return !evaluatedMap.has(key);
+        });
         
-        this.practices = uniquePractices;
-        console.log(`[Student] ✅ Total de prácticas combinadas: ${this.practices.length} (${evaluatedPractices.length} evaluadas, ${this.practices.length - evaluatedPractices.length} de Firebase)`);
+        // Ordenar evaluaciones por fecha (más recientes primero)
+        const sortedEvaluations = Array.from(evaluatedMap.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        // Ordenar prácticas del usuario por fecha (más recientes primero)
+        const sortedPractices = practicesWithoutEvaluation.sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        // Combinar: PRIMERO las evaluaciones, DESPUÉS las prácticas del usuario
+        this.practices = [...sortedEvaluations, ...sortedPractices];
+        
+        console.log(`[Student] ✅ Total de prácticas combinadas: ${this.practices.length}`);
+        console.log(`[Student]   - Evaluaciones del profesor: ${sortedEvaluations.length}`);
+        console.log(`[Student]   - Prácticas del usuario: ${sortedPractices.length}`);
     }
     
     async loadEvaluations() {
@@ -667,36 +667,78 @@ class StudentPanel {
             return;
         }
         
-        tbody.innerHTML = this.practices.map(practice => {
-            const isEvaluated = practice.type === 'evaluated';
-            const badgeIcon = isEvaluated ? '<i class="fas fa-check-circle"></i> ' : '';
-            const badgeText = isEvaluated ? 'Revisada' : this.getStatusText(practice.status);
-            
-            return `
-            <tr class="${isEvaluated ? 'practice-evaluated' : ''}">
-                <td>${new Date(practice.date).toLocaleDateString('es-ES')}</td>
-                <td>
-                    ${practice.sign}
-                    ${isEvaluated ? '<span class="evaluated-badge" title="Práctica revisada por el profesor"><i class="fas fa-check-circle"></i></span>' : ''}
-                </td>
-                <td>
-                    <span class="practice-score score-${practice.status}">
-                        ${practice.score}%
-                    </span>
-                </td>
-                <td>
-                    <span class="status-badge status-${practice.status} ${isEvaluated ? 'status-evaluated' : ''}">
-                        ${badgeIcon}${badgeText}
-                    </span>
-                </td>
-                <td>
-                    <button onclick="studentPanel.viewPractice('${practice.id}')" class="btn btn-sm btn-primary">
-                        <i class="fas fa-eye"></i> Ver
-                    </button>
-                </td>
-            </tr>
-            `;
-        }).join('');
+        // Separar evaluaciones y prácticas para renderizar con secciones
+        const evaluations = this.practices.filter(p => p.type === 'evaluated');
+        const userPractices = this.practices.filter(p => p.type !== 'evaluated');
+        
+        let html = '';
+        
+        // PRIMERO: Mostrar evaluaciones del profesor
+        if (evaluations.length > 0) {
+            evaluations.forEach(practice => {
+                const isEvaluated = true;
+                const badgeIcon = '<i class="fas fa-check-circle"></i> ';
+                const badgeText = practice.status_evaluation === 'completed' ? 'Revisada' : 'Pendiente';
+                
+                html += `
+                <tr class="practice-evaluated">
+                    <td>${new Date(practice.date).toLocaleDateString('es-ES')}</td>
+                    <td>
+                        ${practice.sign}
+                        <span class="evaluated-badge" title="Evaluación revisada por el profesor">
+                            <i class="fas fa-check-circle"></i> Evaluada
+                        </span>
+                    </td>
+                    <td>
+                        <span class="practice-score score-${practice.status}">
+                            ${practice.score}%
+                        </span>
+                    </td>
+                    <td>
+                        <span class="status-badge status-${practice.status} status-evaluated">
+                            ${badgeIcon}${badgeText}
+                        </span>
+                    </td>
+                    <td>
+                        <button onclick="studentPanel.viewPractice('${practice.id}')" class="btn btn-sm btn-primary">
+                            <i class="fas fa-eye"></i> Ver
+                        </button>
+                    </td>
+                </tr>
+                `;
+            });
+        }
+        
+        // SEGUNDO: Mostrar prácticas del usuario
+        if (userPractices.length > 0) {
+            userPractices.forEach(practice => {
+                const badgeText = this.getStatusText(practice.status);
+                
+                html += `
+                <tr>
+                    <td>${new Date(practice.date).toLocaleDateString('es-ES')}</td>
+                    <td>${practice.sign}</td>
+                    <td>
+                        <span class="practice-score score-${practice.status}">
+                            ${practice.score}%
+                        </span>
+                    </td>
+                    <td>
+                        <span class="status-badge status-${practice.status}">
+                            ${badgeText}
+                        </span>
+                    </td>
+                    <td>
+                        <button onclick="studentPanel.viewPractice('${practice.id}')" class="btn btn-sm btn-primary">
+                            <i class="fas fa-eye"></i> Ver
+                        </button>
+                    </td>
+                </tr>
+                `;
+            });
+        }
+        
+        tbody.innerHTML = html;
     }
 
     renderRecentPractices() {
@@ -786,27 +828,75 @@ class StudentPanel {
             return;
         }
         
-        tbody.innerHTML = practices.map(practice => `
-            <tr>
-                <td>${new Date(practice.date).toLocaleDateString('es-ES')}</td>
-                <td>${practice.sign}</td>
-                <td>
-                    <span class="practice-score score-${practice.status}">
-                        ${practice.score}%
-                    </span>
-                </td>
-                <td>
-                    <span class="status-badge status-${practice.status}">
-                        ${this.getStatusText(practice.status)}
-                    </span>
-                </td>
-                <td>
-                    <button onclick="studentPanel.viewPractice('${practice.id}')" class="btn btn-sm btn-primary">
-                        <i class="fas fa-eye"></i> Ver
-                    </button>
-                </td>
-            </tr>
-        `).join('');
+        // Separar evaluaciones y prácticas para mantener el orden
+        const evaluations = practices.filter(p => p.type === 'evaluated');
+        const userPractices = practices.filter(p => p.type !== 'evaluated');
+        
+        let html = '';
+        
+        // PRIMERO: Mostrar evaluaciones del profesor
+        if (evaluations.length > 0) {
+            evaluations.forEach(practice => {
+                const badgeIcon = '<i class="fas fa-check-circle"></i> ';
+                const badgeText = practice.status_evaluation === 'completed' ? 'Revisada' : 'Pendiente';
+                
+                html += `
+                <tr class="practice-evaluated">
+                    <td>${new Date(practice.date).toLocaleDateString('es-ES')}</td>
+                    <td>
+                        ${practice.sign}
+                        <span class="evaluated-badge" title="Evaluación revisada por el profesor">
+                            <i class="fas fa-check-circle"></i> Evaluada
+                        </span>
+                    </td>
+                    <td>
+                        <span class="practice-score score-${practice.status}">
+                            ${practice.score}%
+                        </span>
+                    </td>
+                    <td>
+                        <span class="status-badge status-${practice.status} status-evaluated">
+                            ${badgeIcon}${badgeText}
+                        </span>
+                    </td>
+                    <td>
+                        <button onclick="studentPanel.viewPractice('${practice.id}')" class="btn btn-sm btn-primary">
+                            <i class="fas fa-eye"></i> Ver
+                        </button>
+                    </td>
+                </tr>
+                `;
+            });
+        }
+        
+        // SEGUNDO: Mostrar prácticas del usuario
+        if (userPractices.length > 0) {
+            userPractices.forEach(practice => {
+                html += `
+                <tr>
+                    <td>${new Date(practice.date).toLocaleDateString('es-ES')}</td>
+                    <td>${practice.sign}</td>
+                    <td>
+                        <span class="practice-score score-${practice.status}">
+                            ${practice.score}%
+                        </span>
+                    </td>
+                    <td>
+                        <span class="status-badge status-${practice.status}">
+                            ${this.getStatusText(practice.status)}
+                        </span>
+                    </td>
+                    <td>
+                        <button onclick="studentPanel.viewPractice('${practice.id}')" class="btn btn-sm btn-primary">
+                            <i class="fas fa-eye"></i> Ver
+                        </button>
+                    </td>
+                </tr>
+                `;
+            });
+        }
+        
+        tbody.innerHTML = html;
     }
 
     getStatusText(status) {
