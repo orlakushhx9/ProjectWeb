@@ -67,20 +67,69 @@ router.get('/students', authenticateToken, requireProfessorOrAdmin, async (req, 
 // Obtener gestos detectados en Firebase
 router.get('/gesture-attempts', authenticateToken, requireProfessorOrAdmin, async (req, res) => {
     try {
+        console.log('[Professor] Obteniendo estudiantes de MySQL...');
         const students = await User.findByRole('estudiante');
+        console.log('[Professor] Estudiantes encontrados:', students.length);
+        
         const studentMap = new Map();
+        const studentsWithFirebaseUid = [];
+        const studentsWithoutFirebaseUid = [];
+        
         students.forEach(student => {
-            if (student.firebase_uid) {
-                studentMap.set(student.firebase_uid, student);
+            const studentJson = student.toJSON();
+            if (studentJson.firebase_uid) {
+                studentMap.set(studentJson.firebase_uid, student);
+                studentsWithFirebaseUid.push({
+                    id: studentJson.id,
+                    email: studentJson.email,
+                    firebase_uid: studentJson.firebase_uid
+                });
+            } else {
+                studentsWithoutFirebaseUid.push({
+                    id: studentJson.id,
+                    email: studentJson.email
+                });
             }
         });
+        
+        console.log('[Professor] Estudiantes con firebase_uid:', studentsWithFirebaseUid.length);
+        console.log('[Professor] Estudiantes sin firebase_uid:', studentsWithoutFirebaseUid.length);
+        if (studentsWithoutFirebaseUid.length > 0) {
+            console.log('[Professor] ⚠️ Estudiantes sin firebase_uid:', studentsWithoutFirebaseUid.slice(0, 3));
+        }
 
-        const attemptsByUser = await getAllGestureAttempts();
+        let attemptsByUser = [];
+        try {
+            console.log('[Professor] Intentando obtener gestos de Firebase...');
+            attemptsByUser = await getAllGestureAttempts();
+            console.log('[Professor] ✅ Gestos obtenidos de Firebase:', attemptsByUser.length, 'usuarios');
+            console.log('[Professor] Firebase UIDs con gestos:', attemptsByUser.map(a => a.firebase_uid).slice(0, 5));
+        } catch (firebaseError) {
+            console.error('[Professor] ❌ Error al obtener gestos de Firebase:', firebaseError.message);
+            console.error('[Professor] Stack completo:', firebaseError.stack);
+            // Si Firebase falla, devolver lista vacía en lugar de error 500
+            return res.json({
+                success: true,
+                data: {
+                    attempts: [],
+                    warning: `No se pudieron cargar los gestos de Firebase: ${firebaseError.message}. Verifica la configuración de FIREBASE_SERVICE_ACCOUNT_JSON en Vercel.`,
+                    debug: {
+                        studentsWithFirebaseUid: studentsWithFirebaseUid.length,
+                        studentsWithoutFirebaseUid: studentsWithoutFirebaseUid.length
+                    }
+                }
+            });
+        }
+
         const records = [];
+        const unmatchedFirebaseUids = [];
 
         attemptsByUser.forEach(({ firebase_uid, attempts }) => {
             const student = studentMap.get(firebase_uid);
-            if (!student) return;
+            if (!student) {
+                unmatchedFirebaseUids.push(firebase_uid);
+                return;
+            }
 
             const studentJson = student.toJSON();
             attempts.forEach(attempt => {
@@ -91,19 +140,34 @@ router.get('/gesture-attempts', authenticateToken, requireProfessorOrAdmin, asyn
             });
         });
 
+        if (unmatchedFirebaseUids.length > 0) {
+            console.log('[Professor] ⚠️ Firebase UIDs sin coincidencia en MySQL:', unmatchedFirebaseUids.slice(0, 5));
+        }
+
         records.sort((a, b) => (b.attempt.timestamp || 0) - (a.attempt.timestamp || 0));
+
+        console.log('[Professor] ✅ Total de registros de gestos:', records.length);
 
         res.json({
             success: true,
             data: {
-                attempts: records
+                attempts: records,
+                debug: {
+                    totalStudents: students.length,
+                    studentsWithFirebaseUid: studentsWithFirebaseUid.length,
+                    studentsWithoutFirebaseUid: studentsWithoutFirebaseUid.length,
+                    firebaseUsersWithAttempts: attemptsByUser.length,
+                    unmatchedFirebaseUids: unmatchedFirebaseUids.length,
+                    totalRecords: records.length
+                }
             }
         });
     } catch (error) {
-        console.error('Error al obtener gestos detectados:', error);
+        console.error('[Professor] ❌ Error al obtener gestos detectados:', error);
         res.status(500).json({
             success: false,
-            message: 'Error interno del servidor'
+            message: 'Error interno del servidor',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });

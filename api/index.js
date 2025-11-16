@@ -44,8 +44,8 @@ const swaggerOptions = {
         },
         servers: [
             {
-                url: process.env.VERCEL_URL
-                    ? `https://${process.env.VERCEL_URL}`
+                url: process.env.VERCEL_URL 
+                    ? `https://${process.env.VERCEL_URL}` 
                     : 'http://localhost:5000',
                 description: 'Servidor de producción'
             }
@@ -245,17 +245,17 @@ app.get('/parent', (req, res) => {
 // Manejo de errores
 app.use((err, req, res, next) => {
     console.error(err.stack);
-    res.status(500).json({
-        success: false,
-        message: 'Error interno del servidor'
+    res.status(500).json({ 
+        success: false, 
+        message: 'Error interno del servidor' 
     });
 });
 
 // Ruta 404
 app.use('*', (req, res) => {
-    res.status(404).json({
-        success: false,
-        message: 'Ruta no encontrada'
+    res.status(404).json({ 
+        success: false, 
+        message: 'Ruta no encontrada' 
     });
 });
 
@@ -267,7 +267,7 @@ async function initializeDB() {
     if (dbInitialized) {
         return;
     }
-
+    
     try {
         console.log('Inicializando base de datos...');
         const connectionTest = await testConnection();
@@ -294,7 +294,8 @@ module.exports = async (req, res) => {
     if (!dbInitialized && !process.env.VERCEL) {
         await initializeDB();
     }
-
+    
     // Pasar la solicitud a Express
     return app(req, res);
 };
+

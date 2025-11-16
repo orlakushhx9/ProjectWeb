@@ -3,3 +3,13 @@ node_modules/
 config.env
 *.log
 .DS_Store
+*.tmp
+*.bak
+*.old
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

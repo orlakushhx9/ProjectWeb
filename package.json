@@ -5,7 +5,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "convert-firebase": "node scripts/convert-firebase-key.js",
+    "docker:build": "docker build -t gestus-web .",
+    "docker:run": "docker-compose up",
+    "docker:stop": "docker-compose down"
   },
   "keywords": [
     "express",

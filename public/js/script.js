@@ -1,5 +1,6 @@
-// Configuración de la API
-const API_BASE_URL = 'http://localhost:5000/api';
+// Configuración de la API - Se carga desde config.js
+// Asegúrate de que config.js se cargue antes de este archivo
+const API_BASE_URL = window.API_BASE_URL || '/api';
 
 // Elementos del DOM
 const loginForm = document.getElementById('loginForm');
@@ -72,8 +73,14 @@ async function loginUser(email, password) {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify({ email, password }),
+            mode: 'cors',
+            credentials: 'omit'
         });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
         const data = await response.json();
 
@@ -94,7 +101,15 @@ async function loginUser(email, password) {
         }
     } catch (error) {
         console.error('Error en login:', error);
-        showMessage('Error de conexión. Intenta nuevamente.', 'error');
+        
+        // Mensajes de error más específicos
+        if (error.message.includes('Failed to fetch') || error.message.includes('ERR_BLOCKED_BY_CLIENT')) {
+            showMessage('Error: No se pudo conectar al servidor. Verifica tu conexión a internet y que no haya bloqueadores de anuncios activos.', 'error');
+        } else if (error.message.includes('HTTP error')) {
+            showMessage('Error del servidor. Intenta nuevamente.', 'error');
+        } else {
+            showMessage('Error de conexión. Intenta nuevamente.', 'error');
+        }
     }
 }
 
@@ -105,8 +120,14 @@ async function registerUser(name, email, password) {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ name, email, password })
+            body: JSON.stringify({ name, email, password }),
+            mode: 'cors',
+            credentials: 'omit'
         });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
         const data = await response.json();
 
@@ -127,7 +148,15 @@ async function registerUser(name, email, password) {
         }
     } catch (error) {
         console.error('Error en registro:', error);
-        showMessage('Error de conexión. Intenta nuevamente.', 'error');
+        
+        // Mensajes de error más específicos
+        if (error.message.includes('Failed to fetch') || error.message.includes('ERR_BLOCKED_BY_CLIENT')) {
+            showMessage('Error: No se pudo conectar al servidor. Verifica tu conexión a internet y que no haya bloqueadores de anuncios activos.', 'error');
+        } else if (error.message.includes('HTTP error')) {
+            showMessage('Error del servidor. Intenta nuevamente.', 'error');
+        } else {
+            showMessage('Error de conexión. Intenta nuevamente.', 'error');
+        }
     }
 }
 
