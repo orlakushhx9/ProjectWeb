@@ -163,11 +163,11 @@ class StudentPanel {
                 this.showLoading(true);
             }
             
-            // Cargar prácticas de Firebase
-            await this.loadPractices();
-            
-            // Cargar evaluaciones del profesor
-            await this.loadEvaluations();
+            // Ejecutar ambas operaciones en paralelo para mejor rendimiento
+            await Promise.all([
+                this.loadPractices(),
+                this.loadEvaluations()
+            ]);
             
             // Actualizar estadísticas del dashboard
             this.updateDashboardStats();
