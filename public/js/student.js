@@ -5,12 +5,6 @@ class StudentPanel {
         this.userData = null;
         this.practices = [];
         this.evaluations = []; // Evaluaciones del profesor
-        this.firebase = {
-            service: window.firebaseDataService || null,
-            uid: null,
-            unsubProfile: null,
-            unsubAttempts: null
-        };
         
         if (!this.token) {
             window.location.href = '/login';
@@ -25,19 +19,12 @@ class StudentPanel {
             console.log('[Student] ===== INICIALIZANDO PANEL =====');
             await this.loadUserData();
             
-            // Intentar configurar Firebase, pero no bloquear si falla
-            try {
-                await this.setupFirebaseIntegration();
-            } catch (firebaseError) {
-                console.warn('[Student] ⚠️ Firebase no disponible, continuando sin Firebase:', firebaseError.message);
-                // Continuar sin Firebase
-            }
-            
+            // Ya no usamos Firebase, todo viene de Railway
             this.setupNavigation();
             this.setupEventListeners();
             await this.loadDashboardData();
             
-            // 🔄 AUTO-REFRESH: Actualizar gestos en tiempo real cada 5 segundos
+            // 🔄 AUTO-REFRESH: Actualizar datos cada 5 segundos
             this.startAutoRefresh();
             console.log('[Student] ===== PANEL INICIALIZADO =====');
         } catch (error) {
@@ -157,32 +144,23 @@ class StudentPanel {
                 this.showLoading(true);
             }
             
-            // Paso 1: Si Firebase ya cargó prácticas, mostrar estadísticas primero
-            if (this.practices.length > 0) {
-                console.log('[Student] Paso 1: Mostrando prácticas de Firebase ya cargadas...');
-                this.updateDashboardStats();
-                console.log(`[Student] Prácticas de Firebase: ${this.practices.length}`);
-            }
-            
-            // Paso 2: Cargar evaluaciones del profesor
-            console.log('[Student] Paso 2: Cargando evaluaciones...');
+            // Paso 1: Cargar evaluaciones del profesor desde Railway
+            console.log('[Student] Paso 1: Cargando evaluaciones desde Railway...');
             await this.loadEvaluations();
-            console.log('[Student] Paso 2 completado. Evaluaciones:', this.evaluations.length);
+            console.log('[Student] Paso 1 completado. Evaluaciones:', this.evaluations.length);
             
-            // Paso 3: Cargar prácticas desde la API (NO depende de Firebase)
-            // Esto asegura que siempre tengamos prácticas, incluso si Firebase falla
-            console.log('[Student] Paso 3: Cargando prácticas desde API...');
-            const practicesBeforeAPI = this.practices.length;
+            // Paso 2: Cargar prácticas desde Railway (tabla gesture_attempts)
+            console.log('[Student] Paso 2: Cargando prácticas desde Railway...');
             await this.loadPractices();
-            console.log('[Student] Paso 3 completado. Prácticas antes de API:', practicesBeforeAPI, 'Después:', this.practices.length);
+            console.log('[Student] Paso 2 completado. Prácticas:', this.practices.length);
             
-            // Paso 4: Combinar evaluaciones con prácticas
-            console.log('[Student] Paso 4: Combinando prácticas y evaluaciones...');
+            // Paso 3: Combinar evaluaciones con prácticas
+            console.log('[Student] Paso 3: Combinando prácticas y evaluaciones...');
             this.combinePracticesAndEvaluations();
-            console.log('[Student] Paso 4 completado. Total prácticas combinadas:', this.practices.length);
+            console.log('[Student] Paso 3 completado. Total prácticas combinadas:', this.practices.length);
             
-            // Paso 5: Actualizar estadísticas del dashboard (final)
-            console.log('[Student] Paso 5: Actualizando estadísticas finales...');
+            // Paso 4: Actualizar estadísticas del dashboard (final)
+            console.log('[Student] Paso 4: Actualizando estadísticas finales...');
             this.updateDashboardStats();
             console.log('[Student] ===== loadDashboardData completado =====');
             
@@ -292,9 +270,9 @@ class StudentPanel {
             console.log('[Student] Token disponible:', !!this.token);
             console.log('[Student] API Base URL:', window.API_BASE_URL || '/api');
             
-            // SIEMPRE cargar desde la API primero (Firebase Admin)
+            // Cargar prácticas desde Railway (tabla gesture_attempts)
             const apiUrl = `${window.API_BASE_URL || '/api'}/student/my-attempts`;
-            console.log('[Student] Cargando prácticas desde API:', apiUrl);
+            console.log('[Student] Cargando prácticas desde Railway:', apiUrl);
             
             const response = await fetch(apiUrl, {
                 headers: {
@@ -325,22 +303,21 @@ class StudentPanel {
                 console.log('[Student] Respuesta de my-attempts:', {
                     success: data.success,
                     attemptsCount: data.data?.attempts?.length || 0,
-                    summary: data.data?.summary
+                    total: data.data?.total || 0
                 });
                 
-                // Mapear datos de las prácticas desde la API
+                // Mapear datos de las prácticas desde Railway
                 const apiPractices = (data.data?.attempts || []).map(attempt => {
-                    // Normalizar timestamp
-                    let date = attempt.date || attempt.timestamp || new Date().toISOString();
+                    // Normalizar fecha
+                    let date = attempt.date || attempt.created_at || new Date().toISOString();
                     if (typeof date === 'number') {
                         date = new Date(date).toISOString();
                     } else if (typeof date === 'string' && !date.includes('T')) {
-                        // Si es solo fecha, convertir a ISO
                         date = new Date(date).toISOString();
                     }
                     
                     // Normalizar puntuación
-                    let score = attempt.percentage || attempt.score || 0;
+                    let score = attempt.score || 0;
                     if (typeof score === 'string') {
                         score = parseFloat(score) || 0;
                     }
@@ -350,23 +327,19 @@ class StudentPanel {
                     const sign = attempt.sign || attempt.gestureName || attempt.detectedLabel || attempt.gestureId || 'Gesto';
                     
                     return {
-                        id: attempt.id || `${attempt.gestureId || 'gesto'}-${attempt.timestamp || Date.now()}`,
+                        id: attempt.id || `gesture-${Date.now()}`,
+                        gestureId: attempt.gestureId || null,
                         date: date,
                         sign: sign,
                         score: score,
-                        status: this.getPerformanceStatus(score),
-                        source: 'api',
-                        raw: attempt // Guardar datos originales para debugging
+                        status: attempt.status || this.getPerformanceStatus(score),
+                        type: 'practice', // Marcar como práctica (no evaluación)
+                        raw: attempt.raw || attempt // Guardar datos originales
                     };
                 });
                 
-                console.log(`[Student] ✅ ${apiPractices.length} prácticas cargadas desde API`);
-                
-            // Si Firebase está disponible y tiene datos, combinar ambos
-            // Nota: Las prácticas de Firebase se cargan en setupFirebaseIntegration()
-            // y se aplican mediante applyFirebasePractices()
-            // Aquí solo usamos las prácticas de la API
-            this.practices = apiPractices;
+                console.log(`[Student] ✅ ${apiPractices.length} prácticas cargadas desde Railway`);
+                this.practices = apiPractices;
             }
             
             // Combinar con evaluaciones si ya están cargadas
@@ -408,179 +381,6 @@ class StudentPanel {
         }
     }
     
-    async setupFirebaseIntegration() {
-        console.log('[Firebase] Iniciando integración...');
-        
-        // Esperar a que firebase-data.js se cargue (si es módulo ES6)
-        // Verificar si window.firebaseDataService existe
-        if (!window.firebaseDataService) {
-            console.log('[Firebase] Esperando a que firebaseDataService se cargue...');
-            // Esperar hasta 5 segundos (50 intentos x 100ms)
-            for (let i = 0; i < 50; i++) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                if (window.firebaseDataService) {
-                    break;
-                }
-            }
-        }
-        
-        // Actualizar referencia al servicio
-        this.firebase.service = window.firebaseDataService || null;
-        const service = this.firebase?.service;
-        
-        console.log('[Firebase] Service ready?', service?.isReady);
-        console.log('[Firebase] User email:', this.userData?.email);
-        
-        if (!service) {
-            console.warn('[Firebase] ⚠️ window.firebaseDataService no está disponible. Verifica que firebase-data.js se haya cargado correctamente.');
-            return;
-        }
-        
-        if (!service.isReady) {
-            console.warn('[Firebase] ⚠️ Service no está listo (isReady: false). Verifica window.__FIREBASE_CONFIG__ y la inicialización de Firebase.');
-            console.warn('[Firebase] Continuando sin Firebase. Los datos se cargarán desde la API.');
-            return;
-        }
-        
-        if (!this.userData?.email) {
-            console.warn('[Firebase] No hay email de usuario');
-            return;
-        }
-
-        try {
-            console.log(`[Firebase] Buscando usuario con email: ${this.userData.email}`);
-            const firebaseUser = await service.findUserByEmail(this.userData.email);
-            
-            if (!firebaseUser) {
-                console.warn(`[Firebase] ⚠️ No se encontró un usuario con correo ${this.userData.email}`);
-                console.warn(`[Firebase] El usuario debe estar registrado en Firebase Realtime Database`);
-                console.warn(`[Firebase] Continuando sin Firebase. Los datos se cargarán desde la API.`);
-                return;
-            }
-
-            console.log(`[Firebase] ✓ Usuario encontrado con UID: ${firebaseUser.uid}`);
-            this.firebase.uid = firebaseUser.uid;
-            this.updateProfileFromFirebase(firebaseUser);
-
-            console.log(`[Firebase] Obteniendo intentos de gestos...`);
-            const rawAttempts = await service.getGestureAttempts(firebaseUser.uid);
-            
-            const initialAttempts = service.normalizeGestureAttempts(rawAttempts);
-            console.log(`[Firebase] ✓ Encontrados ${initialAttempts.length} intentos de gestos`);
-            
-            // Aplicar prácticas de Firebase pero NO actualizar estadísticas todavía
-            // loadDashboardData se encargará de actualizar las estadísticas en el orden correcto
-            this.applyFirebasePractices(initialAttempts, false);
-
-            this.cleanupFirebaseListeners();
-            console.log(`[Firebase] Configurando listeners en tiempo real...`);
-            this.firebase.unsubProfile = service.subscribeUserProfile(firebaseUser.uid, (profile) => {
-                if (profile) {
-                    console.log(`[Firebase] Perfil actualizado desde Firebase`);
-                    this.updateProfileFromFirebase({ uid: firebaseUser.uid, ...profile });
-                }
-            });
-            this.firebase.unsubAttempts = service.subscribeGestureAttempts(firebaseUser.uid, (rawAttempts) => {
-                console.log(`[Firebase] Intentos actualizados desde Firebase`);
-                const attempts = service.normalizeGestureAttempts(rawAttempts);
-                // Cuando se actualiza en tiempo real, sí actualizar estadísticas
-                this.applyFirebasePractices(attempts, true);
-            });
-            console.log(`[Firebase] ✅ Integración con Firebase completada exitosamente`);
-        } catch (error) {
-            console.error('[Firebase] ❌ Error configurando integración con Firebase:', error);
-            console.error('[Firebase] Tipo de error:', error.constructor.name);
-            console.error('[Firebase] Mensaje:', error.message);
-            console.error('[Firebase] Stack:', error.stack);
-            console.warn('[Firebase] Continuando sin Firebase. Los datos se cargarán desde la API.');
-        }
-    }
-
-    cleanupFirebaseListeners() {
-        if (this.firebase?.unsubProfile) {
-            this.firebase.unsubProfile();
-            this.firebase.unsubProfile = null;
-        }
-        if (this.firebase?.unsubAttempts) {
-            this.firebase.unsubAttempts();
-            this.firebase.unsubAttempts = null;
-        }
-    }
-
-    updateProfileFromFirebase(profile) {
-        if (!profile) return;
-        this.userData.firebaseProfile = profile;
-
-        const name =
-            profile.displayName ||
-            profile.name ||
-            this.userData.name;
-        const email = profile.email || this.userData.email;
-
-        const userNameEl = document.getElementById('userName');
-        const profileNameEl = document.getElementById('profileName');
-        const profileEmailEl = document.getElementById('profileEmail');
-
-        if (userNameEl && name) userNameEl.textContent = name;
-        if (profileNameEl && name) profileNameEl.textContent = name;
-        if (profileEmailEl && email) profileEmailEl.textContent = email;
-
-        if (profile.memberSince && document.getElementById('memberSince')) {
-            const formatted = new Date(profile.memberSince).toLocaleDateString('es-ES');
-            document.getElementById('memberSince').textContent = formatted;
-        }
-    }
-
-    applyFirebasePractices(attempts, updateStats = true) {
-        if (!Array.isArray(attempts)) {
-            console.log('[Firebase] No hay intentos de Firebase o no es un array');
-            return;
-        }
-        
-        console.log(`[Firebase] Aplicando ${attempts.length} prácticas de Firebase`);
-        
-        // Convertir intentos de Firebase a formato de práctica
-        const firebasePractices = attempts.map((attempt, index) => ({
-            id: attempt.id || `firebase-${index}`,
-            gestureId: attempt.gestureId || null,
-            date: attempt.date || new Date().toISOString(),
-            sign: attempt.sign || 'Gesto',
-            score: typeof attempt.score === 'number' ? attempt.score : 0,
-            status: this.getPerformanceStatus(typeof attempt.score === 'number' ? attempt.score : 0),
-            source: 'firebase',
-            raw: attempt.raw || attempt
-        }));
-        
-        // Combinar con prácticas existentes (de la API)
-        // Eliminar duplicados basándose en fecha y signo
-        const existingPractices = this.practices || [];
-        const combined = [...existingPractices];
-        
-        firebasePractices.forEach(fbPractice => {
-            const exists = combined.some(p => 
-                p.sign === fbPractice.sign && 
-                Math.abs(new Date(p.date) - new Date(fbPractice.date)) < 60000 // Mismo minuto
-            );
-            if (!exists) {
-                combined.push(fbPractice);
-            }
-        });
-        
-        // Ordenar por fecha (más recientes primero)
-        combined.sort((a, b) => new Date(b.date) - new Date(a.date));
-        
-        this.practices = combined;
-        console.log(`[Firebase] ✅ Total de prácticas después de combinar: ${this.practices.length} (${firebasePractices.length} de Firebase, ${existingPractices.length} de API)`);
-
-        // Solo actualizar estadísticas si se solicita explícitamente
-        // Esto permite que loadDashboardData controle cuándo actualizar
-        if (updateStats) {
-            this.renderPracticesTable();
-            this.renderRecentPractices();
-            this.updateDashboardStats();
-            this.updateProfileStats();
-        }
-    }
 
     getPerformanceStatus(score) {
         if (score >= 90) return 'excellent';
@@ -604,7 +404,7 @@ class StudentPanel {
     updateDashboardStats() {
         console.log('[Dashboard] Actualizando estadísticas...');
         
-        // Total de prácticas (incluye evaluaciones y prácticas de Firebase)
+        // Total de prácticas (incluye evaluaciones y prácticas de Railway)
         const totalPractices = this.practices.length;
         const evaluatedCount = this.practices.filter(p => p.type === 'evaluated').length;
         const evaluationsCount = this.evaluations?.length || 0;
@@ -1021,7 +821,8 @@ class StudentPanel {
     }
 
     cleanup() {
-        this.cleanupFirebaseListeners();
+        // Limpiar auto-refresh si existe
+        this.stopAutoRefresh();
     }
 
     showLoading(show) {

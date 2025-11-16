@@ -1,5 +1,6 @@
 const express = require('express');
 const Evaluation = require('../models/Evaluation');
+const GestureAttempt = require('../models/GestureAttempt');
 const User = require('../models/User');
 const { authenticateToken, requireStudent } = require('../middleware/auth');
 
@@ -44,7 +45,7 @@ router.get('/my-evaluations', authenticateToken, requireStudent, async (req, res
     }
 });
 
-// Obtener intentos/prácticas del estudiante
+// Obtener intentos/prácticas del estudiante desde Railway
 router.get('/my-attempts', authenticateToken, requireStudent, async (req, res) => {
     try {
         const studentId = req.userData.id;
@@ -57,19 +58,43 @@ router.get('/my-attempts', authenticateToken, requireStudent, async (req, res) =
             });
         }
         
-        // Por ahora retornar array vacío, las prácticas se obtienen de Firebase
-        // Esto se puede expandir para obtener prácticas desde la BD si es necesario
+        console.log(`[API] Obteniendo intentos de gestos para estudiante ID: ${studentId}`);
+        
+        // Obtener intentos desde la base de datos Railway (tabla gesture_attempts)
+        const attempts = await GestureAttempt.findByStudent(studentId);
+        
+        console.log(`[API] Intentos encontrados: ${attempts.length}`);
+        
+        // Función helper para determinar el estado según la puntuación
+        function getPerformanceStatus(score) {
+            if (score >= 90) return 'excellent';
+            if (score >= 70) return 'good';
+            if (score >= 50) return 'fair';
+            return 'poor';
+        }
+        
+        // Convertir a formato JSON
+        const attemptsData = attempts.map(attempt => {
+            const json = attempt.toJSON();
+            return {
+                ...json,
+                status: getPerformanceStatus(json.score)
+            };
+        });
+
         res.json({
             success: true,
             data: {
-                attempts: []
+                attempts: attemptsData,
+                total: attemptsData.length
             }
         });
     } catch (error) {
-        console.error('Error al obtener intentos del estudiante:', error);
+        console.error('[API] Error al obtener intentos del estudiante:', error);
         res.status(500).json({
             success: false,
-            message: 'Error interno del servidor al obtener intentos'
+            message: 'Error interno del servidor al obtener intentos',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });

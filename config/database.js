@@ -63,6 +63,9 @@ async function initializeDatabase() {
         // Crear tabla de evaluaciones
         await createEvaluationsTable(pool);
         
+        // Crear tabla de intentos de gestos
+        await createGestureAttemptsTable(pool);
+        
         // Crear usuario administrador por defecto
         await createDefaultAdmin(pool);
         
@@ -159,6 +162,36 @@ async function createEvaluationsTable(pool) {
         console.log('Tabla evaluations creada o verificada exitosamente');
     } catch (error) {
         console.error('Error al crear tabla evaluations:', error);
+        throw error;
+    }
+}
+
+async function createGestureAttemptsTable(pool) {
+    try {
+        const createTableQuery = `
+            CREATE TABLE IF NOT EXISTS gesture_attempts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                student_id INT NOT NULL,
+                gesture_id VARCHAR(128) NOT NULL,
+                gesture_name VARCHAR(150) NOT NULL,
+                score DECIMAL(5,2) NOT NULL DEFAULT 0,
+                confidence DECIMAL(5,2) NULL,
+                detected_label VARCHAR(150) NULL,
+                device_info JSON NULL,
+                raw_data JSON NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_student (student_id),
+                INDEX idx_gesture (gesture_id),
+                INDEX idx_created (created_at),
+                CONSTRAINT fk_attempt_student FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `;
+
+        await pool.execute(createTableQuery);
+        console.log('Tabla gesture_attempts creada o verificada exitosamente');
+    } catch (error) {
+        console.error('Error al crear tabla gesture_attempts:', error);
         throw error;
     }
 }
