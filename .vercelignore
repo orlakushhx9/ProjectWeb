@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+.env
+config.env
+.git
+.gitignore
+README.md
+docs
+.vscode
+.idea
+*.log
+docker
+start_server.bat
+google-services.json
+Dockerfile
+.dockerignore
