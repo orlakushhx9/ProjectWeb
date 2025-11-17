@@ -221,10 +221,10 @@ class StudentPanel {
         
         // Crear un mapa de prácticas evaluadas por signo y fecha para evitar duplicados
         const evaluatedMap = new Map();
-        evaluatedPractices.forEach(eval => {
-            const key = `${eval.sign}-${new Date(eval.date).toDateString()}`;
+        evaluatedPractices.forEach(evaluation => {
+            const key = `${evaluation.sign}-${new Date(evaluation.date).toDateString()}`;
             if (!evaluatedMap.has(key)) {
-                evaluatedMap.set(key, eval);
+                evaluatedMap.set(key, evaluation);
             }
         });
         
