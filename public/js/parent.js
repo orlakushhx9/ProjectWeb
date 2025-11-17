@@ -440,10 +440,6 @@ class ParentPanel {
                         <div class="label">Promedio</div>
                     </div>
                     <div class="child-stat">
-                        <div class="value">${child.improvement}</div>
-                        <div class="label">Mejora</div>
-                    </div>
-                    <div class="child-stat">
                         <div class="value">${child.lastPractice ? new Date(child.lastPractice).toLocaleDateString('es-ES') : 'N/A'}</div>
                         <div class="label">Última práctica</div>
                     </div>
