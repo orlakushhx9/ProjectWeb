@@ -446,11 +446,6 @@ class ProfessorPanel {
                     <p><strong>Puntaje detectado:</strong> ${detectedScore}</p>
                     <p><strong>Fecha:</strong> ${detectedDate}</p>
                     <p><strong>Intento:</strong> ${attempt.id || attempt.attemptId || 'N/A'}</p>
-                    <div class="sign-actions">
-                        <button onclick="professorPanel.startEvaluationFromAttempt(${masterIndex})" class="btn btn-sm btn-primary">
-                            <i class="fas fa-clipboard-check"></i> Evaluar
-                        </button>
-                    </div>
                 </div>
             `;
         }).join('');
