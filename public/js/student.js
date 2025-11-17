@@ -558,10 +558,6 @@ class StudentPanel {
         // PRIMERO: Mostrar evaluaciones del profesor
         if (evaluations.length > 0) {
             evaluations.forEach(practice => {
-                const isEvaluated = true;
-                const badgeIcon = '<i class="fas fa-check-circle"></i> ';
-                const badgeText = practice.status_evaluation === 'completed' ? 'Revisada' : 'Pendiente';
-                
                 html += `
                 <tr class="practice-evaluated">
                     <td>${new Date(practice.date).toLocaleDateString('es-ES')}</td>
@@ -577,8 +573,8 @@ class StudentPanel {
                         </span>
                     </td>
                     <td>
-                        <span class="status-badge status-${practice.status} status-evaluated">
-                            ${badgeIcon}${badgeText}
+                        <span class="status-badge status-evaluated">
+                            <i class="fas fa-check-circle"></i> Calificado
                         </span>
                     </td>
                     <td>
@@ -594,8 +590,6 @@ class StudentPanel {
         // SEGUNDO: Mostrar prácticas del usuario
         if (userPractices.length > 0) {
             userPractices.forEach(practice => {
-                const badgeText = this.getStatusText(practice.status);
-                
                 html += `
                 <tr>
                     <td>${new Date(practice.date).toLocaleDateString('es-ES')}</td>
@@ -606,8 +600,8 @@ class StudentPanel {
                         </span>
                     </td>
                     <td>
-                        <span class="status-badge status-${practice.status}">
-                            ${badgeText}
+                        <span class="status-badge status-not-evaluated">
+                            No evaluado
                         </span>
                     </td>
                     <td>
@@ -719,9 +713,6 @@ class StudentPanel {
         // PRIMERO: Mostrar evaluaciones del profesor
         if (evaluations.length > 0) {
             evaluations.forEach(practice => {
-                const badgeIcon = '<i class="fas fa-check-circle"></i> ';
-                const badgeText = practice.status_evaluation === 'completed' ? 'Revisada' : 'Pendiente';
-                
                 html += `
                 <tr class="practice-evaluated">
                     <td>${new Date(practice.date).toLocaleDateString('es-ES')}</td>
@@ -737,8 +728,8 @@ class StudentPanel {
                         </span>
                     </td>
                     <td>
-                        <span class="status-badge status-${practice.status} status-evaluated">
-                            ${badgeIcon}${badgeText}
+                        <span class="status-badge status-evaluated">
+                            <i class="fas fa-check-circle"></i> Calificado
                         </span>
                     </td>
                     <td>
@@ -764,8 +755,8 @@ class StudentPanel {
                         </span>
                     </td>
                     <td>
-                        <span class="status-badge status-${practice.status}">
-                            ${this.getStatusText(practice.status)}
+                        <span class="status-badge status-not-evaluated">
+                            No evaluado
                         </span>
                     </td>
                     <td>
