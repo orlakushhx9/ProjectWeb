@@ -815,11 +815,11 @@ class StudentPanel {
         
         // Si es una evaluación, intentar obtener el nombre del gesto desde la evaluación
         if (practice.type === 'evaluated' && practice.evaluation) {
-            const eval = practice.evaluation;
-            gestureName = eval.gestureName || 
-                         eval.gesture_name || 
-                         eval.sign || 
-                         eval.gestureId || 
+            const evaluation = practice.evaluation;
+            gestureName = evaluation.gestureName || 
+                         evaluation.gesture_name || 
+                         evaluation.sign || 
+                         evaluation.gestureId || 
                          practice.sign || 
                          'Gesto evaluado';
         }
