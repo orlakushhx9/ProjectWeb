@@ -759,10 +759,6 @@ class ParentPanel {
                 <span class="label">Última práctica:</span>
                 <span class="value">${child.lastPractice ? new Date(child.lastPractice).toLocaleDateString('es-ES') : 'N/A'}</span>
             </div>
-            <div class="child-detail-item">
-                <span class="label">Mejora:</span>
-                <span class="value">${child.improvement}</span>
-            </div>
         `;
         
         // Mostrar modal
