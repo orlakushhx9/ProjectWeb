@@ -162,26 +162,65 @@ class ParentPanel {
 
     async loadChildren() {
         try {
-            const response = await fetch('/api/parent/my-children', {
+            console.log('[Parent] Cargando hijos...');
+            const apiUrl = `${window.API_BASE_URL || '/api'}/parent/my-children`;
+            console.log('[Parent] URL:', apiUrl);
+            
+            const response = await fetch(apiUrl, {
                 headers: {
-                    'Authorization': `Bearer ${this.token}`
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json'
                 }
             });
 
+            console.log('[Parent] Respuesta recibida:', {
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok
+            });
+
             if (!response.ok) {
-                throw new Error('Error cargando hijos');
+                const errorText = await response.text();
+                console.error('[Parent] Error en respuesta:', errorText);
+                throw new Error(`Error cargando hijos: ${response.status} ${response.statusText}`);
             }
 
             const data = await response.json();
-            const normalizeAttempts = (attempts = []) => attempts.map((attempt, index) => ({
-                id: attempt.id || index,
-                date: attempt.timestamp ? new Date(attempt.timestamp).toISOString() : (attempt.date || new Date().toISOString()),
-                sign: attempt.sign || 'Gesto',
-                score: typeof attempt.percentage === 'number' ? attempt.percentage : 0,
-                status: this.getPerformanceStatus(typeof attempt.percentage === 'number' ? attempt.percentage : 0)
-            }));
+            console.log('[Parent] Datos recibidos:', {
+                success: data.success,
+                childrenCount: data.data?.children?.length || 0
+            });
+
+            if (!data.success || !data.data || !data.data.children) {
+                console.warn('[Parent] No hay datos de hijos o formato incorrecto');
+                this.children = [];
+                this.practices = [];
+                this.renderChildrenTable();
+                return;
+            }
+
+            const normalizeAttempts = (attempts = []) => {
+                if (!Array.isArray(attempts)) {
+                    console.warn('[Parent] attempts no es un array:', attempts);
+                    return [];
+                }
+                return attempts.map((attempt, index) => ({
+                    id: attempt.id || index,
+                    date: attempt.timestamp ? new Date(attempt.timestamp).toISOString() : (attempt.date || new Date().toISOString()),
+                    sign: attempt.sign || 'Gesto',
+                    score: typeof attempt.percentage === 'number' ? attempt.percentage : 0,
+                    status: this.getPerformanceStatus(typeof attempt.percentage === 'number' ? attempt.percentage : 0)
+                }));
+            };
 
             this.children = data.data.children.map(({ child, stats, attempts }) => {
+                console.log('[Parent] Procesando hijo:', {
+                    id: child?.id,
+                    name: child?.name,
+                    firebase_uid: child?.firebase_uid,
+                    stats: stats,
+                    attemptsCount: attempts?.length || 0
+                });
                 const normalizedAttempts = normalizeAttempts(attempts);
                 
                 // Calcular promedio correctamente
@@ -211,13 +250,21 @@ class ParentPanel {
 
             this.practices = this.children.flatMap(child => child.attempts || []);
 
+            console.log('[Parent] Hijos procesados:', {
+                totalChildren: this.children.length,
+                totalPractices: this.practices.length
+            });
+
             this.renderChildrenTable();
             this.populateSelectors();
             this.updateDashboardStats();
             this.renderChildrenOverview();
+            
+            console.log('[Parent] ✅ Datos de hijos cargados correctamente');
         } catch (error) {
-            console.error('Error cargando hijos:', error);
-            this.showMessage('Error cargando datos de hijos', 'error');
+            console.error('[Parent] ❌ Error cargando hijos:', error);
+            console.error('[Parent] Stack:', error.stack);
+            this.showMessage('Error cargando datos de hijos: ' + error.message, 'error');
             this.children = [];
             this.practices = [];
             this.renderChildrenTable();

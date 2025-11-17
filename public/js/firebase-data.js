@@ -2,6 +2,7 @@
 // Este archivo debe cargarse como módulo ES6: <script type="module" src="/js/firebase-data.js"></script>
 // @ts-nocheck
 /* eslint-disable */
+/* jshint esversion: 6 */
 
 import { initializeApp, getApp } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js';
 import {
