@@ -782,26 +782,8 @@ class ProfessorPanel {
         if (prefill?.studentId) {
             signSelect.disabled = false;
             this.filterGesturesByStudent(prefill.studentId);
-        } else {
-            // Si no hay estudiante seleccionado, mostrar todos los gestos
-            const uniqueSigns = Array.from(new Set(this.gestureAttempts
-                .map(record => record.attempt?.sign)
-                .filter(Boolean)));
-
-            uniqueSigns.forEach(sign => {
-                const option = document.createElement('option');
-                option.value = sign;
-                option.textContent = sign;
-                signSelect.appendChild(option);
-            });
-
-            if (prefill?.gestureName && !uniqueSigns.includes(prefill.gestureName)) {
-                const option = document.createElement('option');
-                option.value = prefill.gestureName;
-                option.textContent = prefill.gestureName;
-                signSelect.appendChild(option);
-            }
         }
+        // Si no hay estudiante seleccionado, el campo permanece deshabilitado
     }
     
     filterGesturesByStudent(studentId) {
