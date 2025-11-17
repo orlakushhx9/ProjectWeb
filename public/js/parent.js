@@ -377,7 +377,7 @@ class ParentPanel {
         if (!this.children.length) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="no-data">
+                    <td colspan="6" class="no-data">
                         <i class="fas fa-child"></i>
                         <p>No hay hijos registrados</p>
                     </td>
@@ -401,11 +401,6 @@ class ParentPanel {
                     </span>
                 </td>
                 <td>${child.lastPractice ? new Date(child.lastPractice).toLocaleDateString('es-ES') : 'N/A'}</td>
-                <td>
-                    <span class="progress-indicator progress-${child.progress}">
-                        ${child.improvement}
-                    </span>
-                </td>
                 <td>
                     <button onclick="parentPanel.viewChildDetails(${child.id})" class="btn btn-sm btn-primary">
                         <i class="fas fa-eye"></i> Ver
@@ -693,7 +688,7 @@ class ParentPanel {
         if (!children.length) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="no-data">
+                    <td colspan="6" class="no-data">
                         <i class="fas fa-search"></i>
                         <p>No se encontraron hijos</p>
                     </td>
@@ -717,11 +712,6 @@ class ParentPanel {
                     </span>
                 </td>
                 <td>${new Date(child.lastPractice).toLocaleDateString('es-ES')}</td>
-                <td>
-                    <span class="progress-indicator progress-${child.progress}">
-                        ${child.improvement}
-                    </span>
-                </td>
                 <td>
                     <button onclick="parentPanel.viewChildDetails(${child.id})" class="btn btn-sm btn-primary">
                         <i class="fas fa-eye"></i> Ver
