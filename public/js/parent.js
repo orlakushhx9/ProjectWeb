@@ -635,13 +635,9 @@ class ParentPanel {
     updateProfileStats() {
         const totalChildren = this.children.length;
         const totalPractices = this.practices.length;
-        const averageScore = totalPractices > 0 
-            ? Math.round(this.practices.reduce((sum, p) => sum + p.score, 0) / totalPractices)
-            : 0;
         
         document.getElementById('totalChildrenProfile').textContent = totalChildren;
         document.getElementById('totalPracticesProfile').textContent = totalPractices;
-        document.getElementById('averageScoreProfile').textContent = `${averageScore}%`;
     }
 
     filterChildren() {
