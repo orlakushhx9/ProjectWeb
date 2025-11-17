@@ -223,7 +223,7 @@ const firebaseDataService = {
 // Exportar como global para compatibilidad
 window.firebaseDataService = firebaseDataService;
 
-console.log('[Firebase Data] ✅ Servicio Firebase Data cargado');
-console.log('[Firebase Data] isReady:', firebaseDataService.isReady);
-
-export default firebaseDataService;
+// Exportar como módulo ES6 (opcional, ya que se expone globalmente)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = firebaseDataService;
+}
