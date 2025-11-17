@@ -128,7 +128,15 @@ class StudentPanel {
                 await this.loadDashboardData();
                 break;
             case 'practices':
+                // Cargar prácticas de Railway y Firebase
                 await this.loadPractices();
+                await this.loadFirebasePractices();
+                // Combinar con evaluaciones si existen
+                if (this.evaluations && this.evaluations.length > 0) {
+                    this.combinePracticesAndEvaluations();
+                }
+                // Renderizar tabla de prácticas
+                this.renderPracticesTable();
                 break;
             case 'profile':
                 await this.loadProfile();
@@ -154,6 +162,11 @@ class StudentPanel {
             await this.loadPractices();
             console.log('[Student] Paso 2 completado. Prácticas:', this.practices.length);
             
+            // Paso 2.5: Cargar prácticas desde Firebase
+            console.log('[Student] Paso 2.5: Cargando prácticas desde Firebase...');
+            await this.loadFirebasePractices();
+            console.log('[Student] Paso 2.5 completado. Prácticas de Firebase cargadas');
+            
             // Paso 3: Combinar evaluaciones con prácticas
             console.log('[Student] Paso 3: Combinando prácticas y evaluaciones...');
             this.combinePracticesAndEvaluations();
@@ -162,6 +175,13 @@ class StudentPanel {
             // Paso 4: Actualizar estadísticas del dashboard (final)
             console.log('[Student] Paso 4: Actualizando estadísticas finales...');
             this.updateDashboardStats();
+            
+            // Paso 5: Renderizar datos
+            console.log('[Student] Paso 5: Renderizando datos...');
+            this.renderPracticesTable();
+            this.renderRecentPractices();
+            this.updateProfileStats();
+            
             console.log('[Student] ===== loadDashboardData completado =====');
             
         } catch (error) {
@@ -296,8 +316,11 @@ class StudentPanel {
                     const errorText = await response.text();
                     console.error(`[Student] Error como texto:`, errorText);
                 }
-                this.practices = [];
-                console.log('[Student] Prácticas establecidas como array vacío debido a error');
+                // No sobrescribir prácticas si ya hay datos de Firebase
+                if (!this.practices || this.practices.length === 0) {
+                    this.practices = [];
+                }
+                console.log('[Student] Prácticas de Railway no disponibles');
             } else {
                 const data = await response.json();
                 console.log('[Student] Respuesta de my-attempts:', {
@@ -334,25 +357,23 @@ class StudentPanel {
                         score: score,
                         status: attempt.status || this.getPerformanceStatus(score),
                         type: 'practice', // Marcar como práctica (no evaluación)
+                        source: 'railway', // Marcar como dato de Railway
                         raw: attempt.raw || attempt // Guardar datos originales
                     };
                 });
                 
                 console.log(`[Student] ✅ ${apiPractices.length} prácticas cargadas desde Railway`);
-                this.practices = apiPractices;
+                
+                // Combinar con prácticas existentes (si hay de Firebase)
+                if (this.practices && this.practices.length > 0) {
+                    // Filtrar prácticas de Railway que ya existen
+                    const existingIds = new Set(this.practices.map(p => p.id));
+                    const newPractices = apiPractices.filter(p => !existingIds.has(p.id));
+                    this.practices = [...this.practices, ...newPractices];
+                } else {
+                    this.practices = apiPractices;
+                }
             }
-            
-            // Combinar con evaluaciones si ya están cargadas
-            if (this.evaluations && this.evaluations.length > 0) {
-                console.log('[Student] Combinando prácticas con evaluaciones...');
-                this.combinePracticesAndEvaluations();
-            }
-            
-            console.log(`[Student] ✅ Total final de prácticas: ${this.practices.length}`);
-            this.renderPracticesTable();
-            this.renderRecentPractices();
-            this.updateDashboardStats();
-            this.updateProfileStats();
             
         } catch (error) {
             console.error('[Student] ❌ ERROR CRÍTICO cargando prácticas:', error);
@@ -364,20 +385,72 @@ class StudentPanel {
             if (!Array.isArray(this.practices)) {
                 this.practices = [];
             }
+        }
+    }
+    
+    async loadFirebasePractices() {
+        try {
+            console.log('[Student] ===== INICIANDO CARGA DE PRÁCTICAS DE FIREBASE =====');
+            console.log('[Student] Token disponible:', !!this.token);
+            console.log('[Student] API Base URL:', window.API_BASE_URL || '/api');
             
-            // Intentar renderizar incluso con error
-            try {
-                this.renderPracticesTable();
-                this.renderRecentPractices();
-                this.updateDashboardStats();
-                this.updateProfileStats();
-            } catch (renderError) {
-                console.error('[Student] Error al renderizar después de fallo:', renderError);
+            // Cargar prácticas desde Firebase
+            const apiUrl = `${window.API_BASE_URL || '/api'}/student/my-firebase-attempts`;
+            console.log('[Student] Cargando prácticas desde Firebase:', apiUrl);
+            
+            const response = await fetch(apiUrl, {
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            console.log('[Student] Respuesta de Firebase recibida:', {
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok
+            });
+
+            if (!response.ok) {
+                console.warn(`[Student] ⚠️ Error en respuesta de Firebase API: ${response.status} ${response.statusText}`);
+                // No es crítico, puede que el usuario no tenga firebase_uid
+                return;
             }
             
-            if (!silent) {
-                this.showMessage('Error cargando prácticas: ' + error.message, 'error');
+            const data = await response.json();
+            console.log('[Student] Respuesta de my-firebase-attempts:', {
+                success: data.success,
+                attemptsCount: data.data?.attempts?.length || 0,
+                total: data.data?.total || 0,
+                summary: data.data?.summary
+            });
+            
+            if (data.success && data.data && data.data.attempts) {
+                const firebasePractices = data.data.attempts;
+                
+                console.log(`[Student] ✅ ${firebasePractices.length} prácticas cargadas desde Firebase`);
+                
+                // Combinar con prácticas existentes (si hay de Railway)
+                if (this.practices && this.practices.length > 0) {
+                    // Filtrar prácticas de Firebase que ya existen
+                    const existingIds = new Set(this.practices.map(p => p.id));
+                    const newPractices = firebasePractices.filter(p => !existingIds.has(p.id));
+                    this.practices = [...this.practices, ...newPractices];
+                } else {
+                    this.practices = firebasePractices;
+                }
+                
+                // Ordenar por fecha (más recientes primero)
+                this.practices.sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                console.log(`[Student] ✅ Total de prácticas después de Firebase: ${this.practices.length}`);
             }
+            
+        } catch (error) {
+            console.error('[Student] ❌ ERROR cargando prácticas de Firebase:', error);
+            console.error('[Student] Tipo de error:', error.constructor.name);
+            console.error('[Student] Mensaje:', error.message);
+            // No es crítico, continuar sin datos de Firebase
         }
     }
     
