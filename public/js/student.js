@@ -16,7 +16,6 @@ class StudentPanel {
 
     async init() {
         try {
-            console.log('[Student] ===== INICIALIZANDO PANEL =====');
             await this.loadUserData();
             
             // Ya no usamos Firebase, todo viene de Railway
@@ -26,7 +25,6 @@ class StudentPanel {
             
             // 🔄 AUTO-REFRESH: Actualizar datos cada 5 segundos
             this.startAutoRefresh();
-            console.log('[Student] ===== PANEL INICIALIZADO =====');
         } catch (error) {
             console.error('[Student] ❌ Error inicializando panel:', error);
             console.error('[Student] Stack:', error.stack);
@@ -46,7 +44,6 @@ class StudentPanel {
             await this.loadDashboardData(true); // true = silent
         }, 5000);
         
-        console.log('✅ Auto-refresh activado (silencioso): actualizando cada 5 segundos');
     }
     
     stopAutoRefresh() {
@@ -146,43 +143,30 @@ class StudentPanel {
 
     async loadDashboardData(silent = false) {
         try {
-            console.log('[Student] ===== loadDashboardData iniciado =====');
             // Solo mostrar loading si NO es actualización silenciosa
             if (!silent) {
                 this.showLoading(true);
             }
             
             // Paso 1: Cargar evaluaciones del profesor desde Railway
-            console.log('[Student] Paso 1: Cargando evaluaciones desde Railway...');
             await this.loadEvaluations();
-            console.log('[Student] Paso 1 completado. Evaluaciones:', this.evaluations.length);
             
             // Paso 2: Cargar prácticas desde Railway (tabla gesture_attempts)
-            console.log('[Student] Paso 2: Cargando prácticas desde Railway...');
             await this.loadPractices();
-            console.log('[Student] Paso 2 completado. Prácticas:', this.practices.length);
             
             // Paso 2.5: Cargar prácticas desde Firebase
-            console.log('[Student] Paso 2.5: Cargando prácticas desde Firebase...');
             await this.loadFirebasePractices();
-            console.log('[Student] Paso 2.5 completado. Prácticas de Firebase cargadas');
             
             // Paso 3: Combinar evaluaciones con prácticas
-            console.log('[Student] Paso 3: Combinando prácticas y evaluaciones...');
             this.combinePracticesAndEvaluations();
-            console.log('[Student] Paso 3 completado. Total prácticas combinadas:', this.practices.length);
             
             // Paso 4: Actualizar estadísticas del dashboard (final)
-            console.log('[Student] Paso 4: Actualizando estadísticas finales...');
             this.updateDashboardStats();
             
             // Paso 5: Renderizar datos
-            console.log('[Student] Paso 5: Renderizando datos...');
             this.renderPracticesTable();
             this.renderRecentPractices();
             this.updateProfileStats();
-            
-            console.log('[Student] ===== loadDashboardData completado =====');
             
         } catch (error) {
             console.error('[Student] ❌ Error cargando dashboard:', error);
@@ -198,7 +182,6 @@ class StudentPanel {
     }
     
     combinePracticesAndEvaluations() {
-        console.log('[Student] Combinando prácticas y evaluaciones...');
         
         // Convertir TODAS las evaluaciones del profesor a formato de práctica
         const evaluatedPractices = (this.evaluations || []).map(evaluation => {
@@ -223,7 +206,6 @@ class StudentPanel {
             };
         });
         
-        console.log(`[Student] Evaluaciones convertidas a prácticas: ${evaluatedPractices.length}`);
         
         // Separar prácticas del usuario (sin evaluar)
         const userPractices = (this.practices || []).filter(p => p.type !== 'evaluated');
@@ -252,14 +234,10 @@ class StudentPanel {
         // Combinar: PRIMERO las evaluaciones, DESPUÉS las prácticas del usuario
         this.practices = [...sortedEvaluations, ...sortedPractices];
         
-        console.log(`[Student] ✅ Total de prácticas combinadas: ${this.practices.length}`);
-        console.log(`[Student]   - Evaluaciones del profesor: ${sortedEvaluations.length}`);
-        console.log(`[Student]   - Prácticas del usuario: ${sortedPractices.length}`);
     }
     
     async loadEvaluations() {
         try {
-            console.log('[Student] Cargando evaluaciones...');
             const response = await fetch(`${window.API_BASE_URL || '/api'}/student/my-evaluations`, {
                 headers: {
                     'Authorization': `Bearer ${this.token}`
@@ -295,13 +273,8 @@ class StudentPanel {
 
     async loadPractices() {
         try {
-            console.log('[Student] ===== INICIANDO CARGA DE PRÁCTICAS =====');
-            console.log('[Student] Token disponible:', !!this.token);
-            console.log('[Student] API Base URL:', window.API_BASE_URL || '/api');
-            
             // Cargar prácticas desde Railway (tabla gesture_attempts)
             const apiUrl = `${window.API_BASE_URL || '/api'}/student/my-attempts`;
-            console.log('[Student] Cargando prácticas desde Railway:', apiUrl);
             
             const response = await fetch(apiUrl, {
                 headers: {
@@ -332,11 +305,6 @@ class StudentPanel {
                 console.log('[Student] Prácticas de Railway no disponibles');
             } else {
                 const data = await response.json();
-                console.log('[Student] Respuesta de my-attempts:', {
-                    success: data.success,
-                    attemptsCount: data.data?.attempts?.length || 0,
-                    total: data.data?.total || 0
-                });
                 
                 // Mapear datos de las prácticas desde Railway
                 const apiPractices = (data.data?.attempts || []).map(attempt => {
@@ -371,7 +339,6 @@ class StudentPanel {
                     };
                 });
                 
-                console.log(`[Student] ✅ ${apiPractices.length} prácticas cargadas desde Railway`);
                 
                 // Combinar con prácticas existentes (si hay de Firebase)
                 if (this.practices && this.practices.length > 0) {
@@ -399,13 +366,8 @@ class StudentPanel {
     
     async loadFirebasePractices() {
         try {
-            console.log('[Student] ===== INICIANDO CARGA DE PRÁCTICAS DE FIREBASE =====');
-            console.log('[Student] Token disponible:', !!this.token);
-            console.log('[Student] API Base URL:', window.API_BASE_URL || '/api');
-            
             // Cargar prácticas desde Firebase
             const apiUrl = `${window.API_BASE_URL || '/api'}/student/my-firebase-attempts`;
-            console.log('[Student] Cargando prácticas desde Firebase:', apiUrl);
             
             const response = await fetch(apiUrl, {
                 headers: {
@@ -414,11 +376,6 @@ class StudentPanel {
                 }
             });
             
-            console.log('[Student] Respuesta de Firebase recibida:', {
-                status: response.status,
-                statusText: response.statusText,
-                ok: response.ok
-            });
 
             if (!response.ok) {
                 console.warn(`[Student] ⚠️ Error en respuesta de Firebase API: ${response.status} ${response.statusText}`);
@@ -427,17 +384,10 @@ class StudentPanel {
             }
             
             const data = await response.json();
-            console.log('[Student] Respuesta de my-firebase-attempts:', {
-                success: data.success,
-                attemptsCount: data.data?.attempts?.length || 0,
-                total: data.data?.total || 0,
-                summary: data.data?.summary
-            });
             
             if (data.success && data.data && data.data.attempts) {
                 const firebasePractices = data.data.attempts;
                 
-                console.log(`[Student] ✅ ${firebasePractices.length} prácticas cargadas desde Firebase`);
                 
                 // Combinar con prácticas existentes (si hay de Railway)
                 if (this.practices && this.practices.length > 0) {
@@ -452,7 +402,6 @@ class StudentPanel {
                 // Ordenar por fecha (más recientes primero)
                 this.practices.sort((a, b) => new Date(b.date) - new Date(a.date));
                 
-                console.log(`[Student] ✅ Total de prácticas después de Firebase: ${this.practices.length}`);
             }
             
         } catch (error) {
@@ -484,15 +433,12 @@ class StudentPanel {
     }
 
     updateDashboardStats() {
-        console.log('[Dashboard] Actualizando estadísticas...');
         
         // Total de prácticas (incluye evaluaciones y prácticas de Railway)
         const totalPractices = this.practices.length;
         const evaluatedCount = this.practices.filter(p => p.type === 'evaluated').length;
         const evaluationsCount = this.evaluations?.length || 0;
         
-        console.log('[Dashboard] Total prácticas:', totalPractices);
-        console.log('[Dashboard] Total evaluaciones:', evaluationsCount);
         
         document.getElementById('totalPractices').textContent = totalPractices;
         
@@ -507,18 +453,15 @@ class StudentPanel {
                 if (evaluatedPractices.length > 0) {
                     averageScore = Math.round(evaluatedPractices.reduce((sum, p) => sum + (p.score || 0), 0) / evaluatedPractices.length);
                     bestScore = Math.max(...evaluatedPractices.map(p => p.score || 0));
-                    console.log(`[Dashboard] ✓ Usando promedio de evaluaciones: ${averageScore}% (${evaluationsCount} evaluaciones)`);
                 } else {
                     // Si hay evaluaciones pero no se han combinado todavía, usar todas las prácticas
                     averageScore = Math.round(this.practices.reduce((sum, p) => sum + (p.score || 0), 0) / totalPractices);
                     bestScore = Math.max(...this.practices.map(p => p.score || 0));
-                    console.log(`[Dashboard] ✓ Usando promedio de prácticas: ${averageScore}% (${totalPractices} prácticas)`);
                 }
             } else {
                 // Si no hay evaluaciones, usar todas las prácticas
                 averageScore = Math.round(this.practices.reduce((sum, p) => sum + (p.score || 0), 0) / totalPractices);
                 bestScore = Math.max(...this.practices.map(p => p.score || 0));
-                console.log(`[Dashboard] ✓ Usando promedio de prácticas: ${averageScore}% (${totalPractices} prácticas)`);
             }
         } else {
             console.warn('[Dashboard] ⚠️ No hay prácticas ni evaluaciones para mostrar');
@@ -531,7 +474,6 @@ class StudentPanel {
         document.getElementById('bestScore').textContent = `${bestScore}%`;
         document.getElementById('lastPractice').textContent = lastPractice;
         
-        console.log(`[Dashboard] Estadísticas actualizadas: ${totalPractices} prácticas, promedio ${averageScore}%`);
     }
 
     renderPracticesTable() {

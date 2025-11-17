@@ -24,7 +24,5 @@
         version: '1.0.0'
     };
     
-    console.log('API Base URL:', window.API_BASE_URL);
-    console.log('Entorno:', isDevelopment ? 'Desarrollo' : 'Producción');
 })();
 

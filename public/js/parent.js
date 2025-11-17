@@ -162,9 +162,7 @@ class ParentPanel {
 
     async loadChildren() {
         try {
-            console.log('[Parent] Cargando hijos...');
             const apiUrl = `${window.API_BASE_URL || '/api'}/parent/my-children`;
-            console.log('[Parent] URL:', apiUrl);
             
             const response = await fetch(apiUrl, {
                 headers: {
@@ -173,11 +171,6 @@ class ParentPanel {
                 }
             });
 
-            console.log('[Parent] Respuesta recibida:', {
-                status: response.status,
-                statusText: response.statusText,
-                ok: response.ok
-            });
 
             if (!response.ok) {
                 const errorText = await response.text();
@@ -186,10 +179,6 @@ class ParentPanel {
             }
 
             const data = await response.json();
-            console.log('[Parent] Datos recibidos:', {
-                success: data.success,
-                childrenCount: data.data?.children?.length || 0
-            });
 
             if (!data.success || !data.data || !data.data.children) {
                 console.warn('[Parent] No hay datos de hijos o formato incorrecto');
@@ -231,17 +220,8 @@ class ParentPanel {
             };
 
             this.children = data.data.children.map(({ child, stats, attempts }) => {
-                console.log('[Parent] Procesando hijo:', {
-                    id: child?.id,
-                    name: child?.name,
-                    firebase_uid: child?.firebase_uid,
-                    stats: stats,
-                    statsAverageScore: stats?.averageScore,
-                    attemptsCount: attempts?.length || 0
-                });
                 const normalizedAttempts = normalizeAttempts(attempts);
                 
-                console.log('[Parent] Intentos normalizados para', child?.name, ':', normalizedAttempts);
                 
                 // Calcular promedio correctamente
                 let averageScore = 0;
@@ -249,7 +229,6 @@ class ParentPanel {
                 // Primero intentar desde stats.averageScore
                 if (stats && stats.averageScore !== undefined && stats.averageScore !== null && stats.averageScore > 0) {
                     averageScore = Math.round(Number(stats.averageScore));
-                    console.log('[Parent] Promedio desde stats.averageScore:', averageScore);
                 } 
                 // Si no hay promedio en stats o es 0, calcular desde los intentos normalizados
                 else if (normalizedAttempts && normalizedAttempts.length > 0) {
@@ -257,12 +236,6 @@ class ParentPanel {
                     if (scores.length > 0) {
                         const totalScore = scores.reduce((sum, score) => sum + score, 0);
                         averageScore = Math.round(totalScore / scores.length);
-                        console.log('[Parent] Promedio calculado desde intentos:', {
-                            totalScore,
-                            count: scores.length,
-                            average: averageScore,
-                            scores: scores
-                        });
                     } else {
                         console.warn('[Parent] No hay scores válidos en los intentos normalizados');
                     }
@@ -284,19 +257,12 @@ class ParentPanel {
                     raw: child
                 };
                 
-                console.log('[Parent] Datos finales del hijo', child?.name, ':', {
-                    average: childData.average,
-                    practices: childData.practices,
-                    progress: childData.progress
-                });
                 
                 return childData;
             });
 
             this.practices = this.children.flatMap(child => child.attempts || []);
 
-            console.log('[Parent] Hijos procesados:', {
-                totalChildren: this.children.length,
                 totalPractices: this.practices.length
             });
 
@@ -305,7 +271,6 @@ class ParentPanel {
             this.updateDashboardStats();
             this.renderChildrenOverview();
             
-            console.log('[Parent] ✅ Datos de hijos cargados correctamente');
         } catch (error) {
             console.error('[Parent] ❌ Error cargando hijos:', error);
             console.error('[Parent] Stack:', error.stack);
