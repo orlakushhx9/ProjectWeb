@@ -715,7 +715,8 @@ class ProfessorPanel {
             gestureSelect.value = prefill.gestureName;
             gestureSelect.disabled = true;
         } else {
-            gestureSelect.disabled = false;
+            // Si no hay gesto preseleccionado, deshabilitar hasta que se seleccione un estudiante
+            gestureSelect.disabled = !prefill?.studentId;
         }
 
         evaluationDate.value = prefill?.attemptTimestamp
@@ -736,7 +737,10 @@ class ProfessorPanel {
         document.getElementById('evaluationModal').style.display = 'none';
         document.getElementById('evaluationForm').reset();
         document.getElementById('evaluationStudent').disabled = false;
-        document.getElementById('evaluationSign').disabled = false;
+        // Deshabilitar el campo de gesto al cerrar el modal
+        const gestureSelect = document.getElementById('evaluationSign');
+        gestureSelect.disabled = true;
+        gestureSelect.innerHTML = '<option value="">Primero selecciona un estudiante</option>';
         document.getElementById('evaluationGestureId').value = '';
         document.getElementById('evaluationAttemptId').value = '';
         document.getElementById('evaluationTimestamp').value = '';
@@ -802,22 +806,17 @@ class ProfessorPanel {
     
     filterGesturesByStudent(studentId) {
         const signSelect = document.getElementById('evaluationSign');
-        signSelect.innerHTML = '<option value="">Seleccionar gesto...</option>';
         
         if (!studentId) {
-            // Si no hay estudiante, mostrar todos los gestos
-            const uniqueSigns = Array.from(new Set(this.gestureAttempts
-                .map(record => record.attempt?.sign)
-                .filter(Boolean)));
-            
-            uniqueSigns.forEach(sign => {
-                const option = document.createElement('option');
-                option.value = sign;
-                option.textContent = sign;
-                signSelect.appendChild(option);
-            });
+            // Si no hay estudiante, deshabilitar y mostrar mensaje
+            signSelect.disabled = true;
+            signSelect.innerHTML = '<option value="">Primero selecciona un estudiante</option>';
             return;
         }
+        
+        // Habilitar el selector de gestos
+        signSelect.disabled = false;
+        signSelect.innerHTML = '<option value="">Seleccionar gesto...</option>';
         
         // Filtrar gestos solo del estudiante seleccionado
         const studentGestures = this.gestureAttempts
@@ -829,6 +828,7 @@ class ProfessorPanel {
         
         if (uniqueStudentSigns.length === 0) {
             signSelect.innerHTML = '<option value="">Este estudiante no tiene gestos registrados</option>';
+            signSelect.disabled = true;
             console.log(`[Filtro] Estudiante ${studentId} no tiene gestos registrados`);
             return;
         }
