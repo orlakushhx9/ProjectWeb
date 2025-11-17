@@ -360,17 +360,9 @@ class ParentPanel {
     updateDashboardStats() {
         const totalChildren = this.children.length;
         const totalPractices = this.practices.length;
-        const averageScore = totalPractices > 0 
-            ? Math.round(this.practices.reduce((sum, p) => sum + p.score, 0) / totalPractices)
-            : 0;
-        const lastActivity = this.practices.length > 0 
-            ? new Date(Math.max(...this.practices.map(p => new Date(p.date)))).toLocaleDateString('es-ES')
-            : 'N/A';
         
         document.getElementById('totalChildren').textContent = totalChildren;
         document.getElementById('totalPractices').textContent = totalPractices;
-        document.getElementById('averageScore').textContent = totalPractices > 0 ? `${averageScore}%` : 'N/A';
-        document.getElementById('lastActivity').textContent = lastActivity;
     }
     
     getPerformanceStatus(score) {
