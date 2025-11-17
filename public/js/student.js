@@ -827,38 +827,6 @@ class StudentPanel {
         statusSpan.textContent = this.getStatusText(practice.status);
         statusSpan.className = `status-badge ${practice.status}`;
 
-        // Confianza / Precisión
-        const confidenceValue = raw.confidence ?? raw.percentage ?? null;
-        const confidenceText = (() => {
-            if (confidenceValue === null || confidenceValue === undefined) return 'No disponible';
-            const numeric = Number(confidenceValue);
-            if (Number.isNaN(numeric)) return confidenceValue;
-            return `${Math.round(numeric * (numeric <= 1 ? 100 : 1))}%`;
-        })();
-        document.getElementById('practiceDetailConfidence').textContent = confidenceText;
-
-        // Detección (etiqueta detectada)
-        const detected = raw.detectedLabel || raw.predictedLabel || raw.label || 'No disponible';
-        document.getElementById('practiceDetailDetected').textContent = detected;
-
-        // Identificadores y metadatos
-        const tagsContainer = document.getElementById('practiceDetailIds');
-        tagsContainer.innerHTML = '';
-        const pushTag = (label, value) => {
-            if (!value) return;
-            const tag = document.createElement('span');
-            tag.className = 'detail-tag';
-            tag.textContent = `${label}: ${value}`;
-            tagsContainer.appendChild(tag);
-        };
-
-        const gestureId = raw.gestureId || practice.gestureId || String(practice.id).split('::')[0];
-        const attemptId = raw.attemptId || raw.id || practice.id;
-        pushTag('Gesto ID', gestureId);
-        pushTag('Intento ID', attemptId);
-        if (raw.deviceInfo?.model) pushTag('Dispositivo', raw.deviceInfo.model);
-        if (raw.deviceInfo?.platform) pushTag('Sistema', raw.deviceInfo.platform);
-
         // Notas u observaciones
         // Comentarios del profesor (evaluaciones)
         let relatedEvaluation = null;
