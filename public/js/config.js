@@ -1,16 +1,5 @@
 // Configuración de la API - Funciona en desarrollo y producción
 (function() {
-    // Prevenir pausas automáticas en el debugger
-    // Sobrescribir debugger si existe para evitar pausas no deseadas
-    if (typeof window !== 'undefined') {
-        const originalDebugger = window.debugger;
-        Object.defineProperty(window, 'debugger', {
-            get: function() { return undefined; },
-            set: function() { return undefined; },
-            configurable: false
-        });
-    }
-    
     // Detectar si estamos en desarrollo o producción
     const isDevelopment = window.location.hostname === 'localhost' || 
                          window.location.hostname === '127.0.0.1' ||
