@@ -201,18 +201,27 @@ class StudentPanel {
         console.log('[Student] Combinando prácticas y evaluaciones...');
         
         // Convertir TODAS las evaluaciones del profesor a formato de práctica
-        const evaluatedPractices = (this.evaluations || []).map(evaluation => ({
-            id: `eval-${evaluation.id}`,
-            date: evaluation.attempt_timestamp || evaluation.created_at || evaluation.updated_at || new Date().toISOString(),
-            sign: evaluation.gesture_name || 'Gesto evaluado',
-            score: evaluation.score || 0,
-            status: this.getPerformanceStatus(evaluation.score || 0),
-            type: 'evaluated', // Marcar como evaluada
-            evaluation: evaluation, // Guardar datos completos de la evaluación
-            comments: evaluation.comments || null,
-            professor_id: evaluation.professor_id || null,
-            status_evaluation: evaluation.status || 'completed' // Estado de la evaluación
-        }));
+        const evaluatedPractices = (this.evaluations || []).map(evaluation => {
+            // Obtener el nombre del gesto desde diferentes campos posibles
+            const gestureName = evaluation.gestureName || 
+                               evaluation.gesture_name || 
+                               evaluation.sign || 
+                               evaluation.gestureId || 
+                               'Gesto desconocido';
+            
+            return {
+                id: `eval-${evaluation.id}`,
+                date: evaluation.attemptTimestamp || evaluation.attempt_timestamp || evaluation.created_at || evaluation.updated_at || new Date().toISOString(),
+                sign: gestureName,
+                score: evaluation.score || 0,
+                status: this.getPerformanceStatus(evaluation.score || 0),
+                type: 'evaluated', // Marcar como evaluada
+                evaluation: evaluation, // Guardar datos completos de la evaluación
+                comments: evaluation.comments || null,
+                professor_id: evaluation.professorId || evaluation.professor_id || null,
+                status_evaluation: evaluation.status || 'completed' // Estado de la evaluación
+            };
+        });
         
         console.log(`[Student] Evaluaciones convertidas a prácticas: ${evaluatedPractices.length}`);
         
@@ -801,8 +810,21 @@ class StudentPanel {
             : 'Sin fecha registrada';
         document.getElementById('practiceDetailDate').textContent = formattedDate;
 
-        // Seña
-        document.getElementById('practiceDetailSign').textContent = practice.sign || 'Desconocida';
+        // Seña - Obtener el nombre del gesto desde diferentes fuentes
+        let gestureName = practice.sign || 'Desconocida';
+        
+        // Si es una evaluación, intentar obtener el nombre del gesto desde la evaluación
+        if (practice.type === 'evaluated' && practice.evaluation) {
+            const eval = practice.evaluation;
+            gestureName = eval.gestureName || 
+                         eval.gesture_name || 
+                         eval.sign || 
+                         eval.gestureId || 
+                         practice.sign || 
+                         'Gesto evaluado';
+        }
+        
+        document.getElementById('practiceDetailSign').textContent = gestureName;
 
         // Puntaje
         const scoreSpan = document.getElementById('practiceDetailScore');
@@ -848,39 +870,54 @@ class StudentPanel {
 
         // Notas u observaciones
         // Comentarios del profesor (evaluaciones)
-        const relatedEvaluation = (this.evaluations || []).find(evaluation => {
-            // Comparar por attemptId exacto
-            const evalAttemptId = evaluation.attemptId || evaluation.attempt_id || null;
-            const practiceAttemptId = raw.attemptId || practice.id;
-            if (evalAttemptId && practiceAttemptId && String(evalAttemptId) === String(practiceAttemptId)) {
-                return true;
-            }
+        let relatedEvaluation = null;
+        
+        // Si la práctica ya tiene la evaluación asociada, usarla directamente
+        if (practice.type === 'evaluated' && practice.evaluation) {
+            relatedEvaluation = practice.evaluation;
+        } else {
+            // Si no, buscar en las evaluaciones
+            relatedEvaluation = (this.evaluations || []).find(evaluation => {
+                // Comparar por attemptId exacto
+                const evalAttemptId = evaluation.attemptId || evaluation.attempt_id || null;
+                const practiceAttemptId = raw.attemptId || practice.id;
+                if (evalAttemptId && practiceAttemptId && String(evalAttemptId) === String(practiceAttemptId)) {
+                    return true;
+                }
 
-            // Comparar por gestureId si existe
-            const evalGestureId = evaluation.gestureId || evaluation.gesture_id || null;
-            if (evalGestureId && practice.gestureId && String(evalGestureId) === String(practice.gestureId)) {
-                return true;
-            }
+                // Comparar por gestureId si existe
+                const evalGestureId = evaluation.gestureId || evaluation.gesture_id || null;
+                if (evalGestureId && practice.gestureId && String(evalGestureId) === String(practice.gestureId)) {
+                    return true;
+                }
 
-            // Comparar por gestureName + proximidad temporal (2 horas)
-            if (evaluation.gestureName && evaluation.gestureName.toLowerCase() === (practice.sign || '').toLowerCase()) {
-                const evalTime = evaluation.attemptTimestamp || evaluation.created_at;
-                if (evalTime && practice.date) {
-                    const diffMs = Math.abs(new Date(evalTime).getTime() - new Date(practice.date).getTime());
-                    if (diffMs <= 1000 * 60 * 60 * 2) { // 2 horas
-                        return true;
+                // Comparar por gestureName + proximidad temporal (2 horas)
+                const evalGestureName = evaluation.gestureName || evaluation.gesture_name || '';
+                const practiceGestureName = practice.sign || gestureName || '';
+                if (evalGestureName && practiceGestureName && evalGestureName.toLowerCase() === practiceGestureName.toLowerCase()) {
+                    const evalTime = evaluation.attemptTimestamp || evaluation.attempt_timestamp || evaluation.created_at;
+                    if (evalTime && practice.date) {
+                        const diffMs = Math.abs(new Date(evalTime).getTime() - new Date(practice.date).getTime());
+                        if (diffMs <= 1000 * 60 * 60 * 2) { // 2 horas
+                            return true;
+                        }
                     }
                 }
-            }
 
-            return false;
-        });
+                return false;
+            });
+        }
 
         const teacherNotes = relatedEvaluation?.comments?.trim();
         document.getElementById('practiceDetailNotes').textContent = teacherNotes || 'Sin comentarios';
 
-        if (!teacherNotes && !relatedEvaluation) {
-            console.log(`[Práctica] Sin evaluación del profesor asociada a ${practice.sign} (${practice.id})`);
+        // Si es una evaluación, mostrar información adicional
+        if (practice.type === 'evaluated' && relatedEvaluation) {
+            // Actualizar el nombre del gesto en el detalle si es necesario
+            const evalGestureName = relatedEvaluation.gestureName || relatedEvaluation.gesture_name;
+            if (evalGestureName && evalGestureName !== gestureName) {
+                document.getElementById('practiceDetailSign').textContent = evalGestureName;
+            }
         }
 
         modal.style.display = 'block';
