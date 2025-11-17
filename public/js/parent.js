@@ -261,9 +261,6 @@ class ParentPanel {
 
             this.practices = this.children.flatMap(child => child.attempts || []);
 
-                totalPractices: this.practices.length
-            });
-
             this.renderChildrenTable();
             this.populateSelectors();
             this.updateDashboardStats();
