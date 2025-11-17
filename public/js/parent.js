@@ -204,13 +204,30 @@ class ParentPanel {
                     console.warn('[Parent] attempts no es un array:', attempts);
                     return [];
                 }
-                return attempts.map((attempt, index) => ({
-                    id: attempt.id || index,
-                    date: attempt.timestamp ? new Date(attempt.timestamp).toISOString() : (attempt.date || new Date().toISOString()),
-                    sign: attempt.sign || 'Gesto',
-                    score: typeof attempt.percentage === 'number' ? attempt.percentage : 0,
-                    status: this.getPerformanceStatus(typeof attempt.percentage === 'number' ? attempt.percentage : 0)
-                }));
+                return attempts.map((attempt, index) => {
+                    // Obtener el score desde diferentes campos posibles
+                    let score = 0;
+                    if (typeof attempt.percentage === 'number') {
+                        score = attempt.percentage;
+                    } else if (typeof attempt.score === 'number') {
+                        score = attempt.score;
+                    } else if (typeof attempt.percentage === 'string') {
+                        score = parseFloat(attempt.percentage) || 0;
+                    } else if (typeof attempt.score === 'string') {
+                        score = parseFloat(attempt.score) || 0;
+                    }
+                    
+                    // Asegurar que el score esté entre 0 y 100
+                    score = Math.max(0, Math.min(100, Math.round(score)));
+                    
+                    return {
+                        id: attempt.id || index,
+                        date: attempt.timestamp ? new Date(attempt.timestamp).toISOString() : (attempt.date || new Date().toISOString()),
+                        sign: attempt.sign || 'Gesto',
+                        score: score,
+                        status: this.getPerformanceStatus(score)
+                    };
+                });
             };
 
             this.children = data.data.children.map(({ child, stats, attempts }) => {
@@ -219,21 +236,41 @@ class ParentPanel {
                     name: child?.name,
                     firebase_uid: child?.firebase_uid,
                     stats: stats,
+                    statsAverageScore: stats?.averageScore,
                     attemptsCount: attempts?.length || 0
                 });
                 const normalizedAttempts = normalizeAttempts(attempts);
                 
+                console.log('[Parent] Intentos normalizados para', child?.name, ':', normalizedAttempts);
+                
                 // Calcular promedio correctamente
                 let averageScore = 0;
-                if (stats && stats.averageScore !== undefined && stats.averageScore !== null) {
+                
+                // Primero intentar desde stats.averageScore
+                if (stats && stats.averageScore !== undefined && stats.averageScore !== null && stats.averageScore > 0) {
                     averageScore = Math.round(Number(stats.averageScore));
-                } else if (normalizedAttempts && normalizedAttempts.length > 0) {
-                    // Calcular promedio desde los intentos normalizados si no viene en stats
-                    const totalScore = normalizedAttempts.reduce((sum, attempt) => sum + (attempt.score || 0), 0);
-                    averageScore = Math.round(totalScore / normalizedAttempts.length);
+                    console.log('[Parent] Promedio desde stats.averageScore:', averageScore);
+                } 
+                // Si no hay promedio en stats o es 0, calcular desde los intentos normalizados
+                else if (normalizedAttempts && normalizedAttempts.length > 0) {
+                    const scores = normalizedAttempts.map(a => a.score || 0).filter(s => s > 0);
+                    if (scores.length > 0) {
+                        const totalScore = scores.reduce((sum, score) => sum + score, 0);
+                        averageScore = Math.round(totalScore / scores.length);
+                        console.log('[Parent] Promedio calculado desde intentos:', {
+                            totalScore,
+                            count: scores.length,
+                            average: averageScore,
+                            scores: scores
+                        });
+                    } else {
+                        console.warn('[Parent] No hay scores válidos en los intentos normalizados');
+                    }
+                } else {
+                    console.warn('[Parent] No hay intentos para calcular promedio');
                 }
                 
-                return {
+                const childData = {
                     id: child.id,
                     firebase_uid: child.firebase_uid,
                     name: child.name,
@@ -246,6 +283,14 @@ class ParentPanel {
                     attempts: normalizedAttempts,
                     raw: child
                 };
+                
+                console.log('[Parent] Datos finales del hijo', child?.name, ':', {
+                    average: childData.average,
+                    practices: childData.practices,
+                    progress: childData.progress
+                });
+                
+                return childData;
             });
 
             this.practices = this.children.flatMap(child => child.attempts || []);
