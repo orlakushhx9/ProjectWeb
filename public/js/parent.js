@@ -183,16 +183,27 @@ class ParentPanel {
 
             this.children = data.data.children.map(({ child, stats, attempts }) => {
                 const normalizedAttempts = normalizeAttempts(attempts);
+                
+                // Calcular promedio correctamente
+                let averageScore = 0;
+                if (stats && stats.averageScore !== undefined && stats.averageScore !== null) {
+                    averageScore = Math.round(Number(stats.averageScore));
+                } else if (normalizedAttempts && normalizedAttempts.length > 0) {
+                    // Calcular promedio desde los intentos normalizados si no viene en stats
+                    const totalScore = normalizedAttempts.reduce((sum, attempt) => sum + (attempt.score || 0), 0);
+                    averageScore = Math.round(totalScore / normalizedAttempts.length);
+                }
+                
                 return {
                     id: child.id,
                     firebase_uid: child.firebase_uid,
                     name: child.name,
                     email: child.email,
-                    practices: stats.totalAttempts || 0,
-                    average: stats.averageScore || 0,
+                    practices: stats.totalAttempts || normalizedAttempts.length || 0,
+                    average: averageScore,
                     lastPractice: stats.lastPractice,
-                    progress: this.getPerformanceStatus(stats.averageScore || 0),
-                    improvement: `${stats.bestScore || 0}%`,
+                    progress: this.getPerformanceStatus(averageScore),
+                    improvement: `${Math.round(stats.bestScore || 0)}%`,
                     attempts: normalizedAttempts,
                     raw: child
                 };

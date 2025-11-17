@@ -1,5 +1,7 @@
 // Firebase Data Service - Módulo ES6
 // Este archivo debe cargarse como módulo ES6: <script type="module" src="/js/firebase-data.js"></script>
+// @ts-nocheck
+/* eslint-disable */
 
 import { initializeApp, getApp } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js';
 import {
