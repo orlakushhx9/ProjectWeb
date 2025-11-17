@@ -45,14 +45,12 @@ class ParentPanel {
             await this.loadDashboardData(true); // true = silent
         }, 5000);
         
-        console.log('✅ Auto-refresh activado (silencioso): actualizando cada 5 segundos');
     }
     
     stopAutoRefresh() {
         if (this.refreshInterval) {
             clearInterval(this.refreshInterval);
             this.refreshInterval = null;
-            console.log('⏸️ Auto-refresh detenido');
         }
     }
 

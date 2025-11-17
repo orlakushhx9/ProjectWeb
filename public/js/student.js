@@ -50,7 +50,6 @@ class StudentPanel {
         if (this.refreshInterval) {
             clearInterval(this.refreshInterval);
             this.refreshInterval = null;
-            console.log('⏸️ Auto-refresh detenido');
         }
     }
 
