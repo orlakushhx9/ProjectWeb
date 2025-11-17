@@ -78,13 +78,9 @@ async function loginUser(email, password) {
             credentials: 'omit'
         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
         const data = await response.json();
 
-        if (data.success) {
+        if (response.ok && data.success) {
             // Guardar tokens en localStorage
             localStorage.setItem('token', data.data.accessToken);
             localStorage.setItem('refreshToken', data.data.refreshToken);
@@ -97,7 +93,12 @@ async function loginUser(email, password) {
                 window.location.href = '/dashboard';
             }, 1500);
         } else {
-            showMessage(data.message || 'Error en el login', 'error');
+            // Mostrar mensaje específico según el código de estado
+            if (response.status === 401) {
+                showMessage('Credenciales inválidas. Verifica tu correo y contraseña.', 'error');
+            } else {
+                showMessage(data.message || 'Error en el login', 'error');
+            }
         }
     } catch (error) {
         console.error('Error en login:', error);
@@ -105,8 +106,6 @@ async function loginUser(email, password) {
         // Mensajes de error más específicos
         if (error.message.includes('Failed to fetch') || error.message.includes('ERR_BLOCKED_BY_CLIENT')) {
             showMessage('Error: No se pudo conectar al servidor. Verifica tu conexión a internet y que no haya bloqueadores de anuncios activos.', 'error');
-        } else if (error.message.includes('HTTP error')) {
-            showMessage('Error del servidor. Intenta nuevamente.', 'error');
         } else {
             showMessage('Error de conexión. Intenta nuevamente.', 'error');
         }
