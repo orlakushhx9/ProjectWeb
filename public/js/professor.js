@@ -425,51 +425,43 @@ class ProfessorPanel {
             const masterIndex = this.gestureAttempts.indexOf(record);
             const { student, attempt } = record;
             
-            // Obtener el puntaje desde diferentes campos posibles de Firebase
-            let detectedScore = 0;
+            // Obtener el percentage directamente del objeto attempt, igual que gestureId
+            // Buscar en attempt.percentage (campo normalizado del backend)
+            let detectedScore = attempt.percentage;
             
-            // Buscar en attempt.percentage (campo normalizado)
-            if (typeof attempt.percentage === 'number' && attempt.percentage > 0) {
-                detectedScore = attempt.percentage;
+            // Si no está en attempt.percentage, buscar en attempt.raw.percentage (datos originales de Firebase)
+            if (detectedScore === undefined || detectedScore === null) {
+                detectedScore = attempt.raw?.percentage;
             }
-            // Buscar en attempt.score
-            else if (typeof attempt.score === 'number' && attempt.score > 0) {
+            
+            // Si tampoco está ahí, buscar en attempt.score y convertir si es necesario
+            if ((detectedScore === undefined || detectedScore === null) && typeof attempt.score === 'number') {
                 detectedScore = attempt.score;
                 // Si el score está entre 0 y 1, convertirlo a porcentaje
-                if (detectedScore <= 1) {
-                    detectedScore = Math.round(detectedScore * 100);
-                }
-            }
-            // Buscar en attempt.confidence
-            else if (typeof attempt.confidence === 'number' && attempt.confidence > 0) {
-                detectedScore = attempt.confidence;
-                // Si el confidence está entre 0 y 1, convertirlo a porcentaje
-                if (detectedScore <= 1) {
-                    detectedScore = Math.round(detectedScore * 100);
-                }
-            }
-            // Buscar en attempt.raw (datos originales de Firebase)
-            else if (attempt.raw) {
-                const raw = attempt.raw;
-                if (typeof raw.percentage === 'number' && raw.percentage > 0) {
-                    detectedScore = raw.percentage;
-                } else if (typeof raw.score === 'number' && raw.score > 0) {
-                    detectedScore = raw.score;
-                    if (detectedScore <= 1) {
-                        detectedScore = Math.round(detectedScore * 100);
-                    }
-                } else if (typeof raw.confidence === 'number' && raw.confidence > 0) {
-                    detectedScore = raw.confidence;
-                    if (detectedScore <= 1) {
-                        detectedScore = Math.round(detectedScore * 100);
-                    }
+                if (detectedScore > 0 && detectedScore <= 1) {
+                    detectedScore = detectedScore * 100;
                 }
             }
             
-            // Asegurar que el score esté entre 0 y 100
+            // Si tampoco está ahí, buscar en attempt.raw.score
+            if ((detectedScore === undefined || detectedScore === null) && attempt.raw?.score !== undefined) {
+                detectedScore = attempt.raw.score;
+                // Si el score está entre 0 y 1, convertirlo a porcentaje
+                if (typeof detectedScore === 'number' && detectedScore > 0 && detectedScore <= 1) {
+                    detectedScore = detectedScore * 100;
+                }
+            }
+            
+            // Si no se encontró ningún valor, usar 0
+            if (detectedScore === undefined || detectedScore === null) {
+                detectedScore = 0;
+            }
+            
+            // Convertir a número y redondear
+            detectedScore = typeof detectedScore === 'number' ? detectedScore : parseFloat(detectedScore) || 0;
             detectedScore = Math.max(0, Math.min(100, Math.round(detectedScore)));
             
-            const detectedScoreText = detectedScore > 0 ? `${detectedScore}%` : '0%';
+            const detectedScoreText = `${detectedScore}%`;
             const detectedDate = attempt.timestamp ? new Date(attempt.timestamp).toLocaleString('es-ES') : 'N/A';
             const signName = attempt.sign || 'Gesto';
 
