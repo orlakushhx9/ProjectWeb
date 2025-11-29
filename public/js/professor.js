@@ -469,7 +469,6 @@ class ProfessorPanel {
                 <div class="sign-card">
                     <h3>${signName}</h3>
                     <p><strong>Estudiante:</strong> ${student?.name || 'Desconocido'}</p>
-                    <p><strong>Puntaje detectado:</strong> ${detectedScoreText}</p>
                     <p><strong>Fecha:</strong> ${detectedDate}</p>
                     <p><strong>Intento:</strong> ${attempt.id || attempt.attemptId || 'N/A'}</p>
                 </div>
