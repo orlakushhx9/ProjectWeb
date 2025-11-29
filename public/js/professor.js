@@ -424,7 +424,52 @@ class ProfessorPanel {
         container.innerHTML = records.map(record => {
             const masterIndex = this.gestureAttempts.indexOf(record);
             const { student, attempt } = record;
-            const detectedScore = typeof attempt.percentage === 'number' ? `${attempt.percentage}%` : 'N/A';
+            
+            // Obtener el puntaje desde diferentes campos posibles de Firebase
+            let detectedScore = 0;
+            
+            // Buscar en attempt.percentage (campo normalizado)
+            if (typeof attempt.percentage === 'number' && attempt.percentage > 0) {
+                detectedScore = attempt.percentage;
+            }
+            // Buscar en attempt.score
+            else if (typeof attempt.score === 'number' && attempt.score > 0) {
+                detectedScore = attempt.score;
+                // Si el score está entre 0 y 1, convertirlo a porcentaje
+                if (detectedScore <= 1) {
+                    detectedScore = Math.round(detectedScore * 100);
+                }
+            }
+            // Buscar en attempt.confidence
+            else if (typeof attempt.confidence === 'number' && attempt.confidence > 0) {
+                detectedScore = attempt.confidence;
+                // Si el confidence está entre 0 y 1, convertirlo a porcentaje
+                if (detectedScore <= 1) {
+                    detectedScore = Math.round(detectedScore * 100);
+                }
+            }
+            // Buscar en attempt.raw (datos originales de Firebase)
+            else if (attempt.raw) {
+                const raw = attempt.raw;
+                if (typeof raw.percentage === 'number' && raw.percentage > 0) {
+                    detectedScore = raw.percentage;
+                } else if (typeof raw.score === 'number' && raw.score > 0) {
+                    detectedScore = raw.score;
+                    if (detectedScore <= 1) {
+                        detectedScore = Math.round(detectedScore * 100);
+                    }
+                } else if (typeof raw.confidence === 'number' && raw.confidence > 0) {
+                    detectedScore = raw.confidence;
+                    if (detectedScore <= 1) {
+                        detectedScore = Math.round(detectedScore * 100);
+                    }
+                }
+            }
+            
+            // Asegurar que el score esté entre 0 y 100
+            detectedScore = Math.max(0, Math.min(100, Math.round(detectedScore)));
+            
+            const detectedScoreText = detectedScore > 0 ? `${detectedScore}%` : '0%';
             const detectedDate = attempt.timestamp ? new Date(attempt.timestamp).toLocaleString('es-ES') : 'N/A';
             const signName = attempt.sign || 'Gesto';
 
@@ -432,7 +477,7 @@ class ProfessorPanel {
                 <div class="sign-card">
                     <h3>${signName}</h3>
                     <p><strong>Estudiante:</strong> ${student?.name || 'Desconocido'}</p>
-                    <p><strong>Puntaje detectado:</strong> ${detectedScore}</p>
+                    <p><strong>Puntaje detectado:</strong> ${detectedScoreText}</p>
                     <p><strong>Fecha:</strong> ${detectedDate}</p>
                     <p><strong>Intento:</strong> ${attempt.id || attempt.attemptId || 'N/A'}</p>
                 </div>
